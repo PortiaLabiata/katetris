@@ -256,7 +256,7 @@ _vectors:
         .thumb_func
         .weak       Reset_Handler
 Reset_Handler:
-         b          _crt0_entry
+         bl          _crt0_entry
 
         .thumb_func
         .weak       NMI_Handler

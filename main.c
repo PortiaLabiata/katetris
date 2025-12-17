@@ -1,12 +1,17 @@
 #include "ch.h"
+#include "chthreads.h"
+#include "hal.h"
+#include "hal_pal.h"
 
 int main(void) {
-	const char *test = "fuck";
-	int a = 2+2;
-	int b = 2+a;
-
+	halInit();
 	chSysInit();
 
-	while (1) 
-		a++;
+	palSetPadMode(GPIOC, 13U, PAL_MODE_OUTPUT_PUSHPULL);
+	palSetPad(GPIOC, 13U);
+
+	while (1) {
+		palTogglePad(GPIOC, 13U);
+		chThdSleepMilliseconds(1000);
+	}
 }

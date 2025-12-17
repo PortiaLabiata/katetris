@@ -10,15 +10,19 @@ set(LD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/chibios/os/common/startup/ARMCMx/compiler
 
 add_compile_options(
 	-Wall
-	-O0
+	-Os
 	-mcpu=cortex-m3
 	-mthumb
+	-mno-thumb-interwork
 	-g
 )
 add_link_options(
+	-mcpu=cortex-m3
+	-mthumb
 	--specs=nosys.specs 
 	-fno-exceptions 
 	-nostartfiles
+	-flto
 
 	-Wl,--defsym=__main_stack_size__=0x400,--defsym=__process_stack_size__=0x400
 	-Wl,-L${LD_DIR},-T${LD_DIR}/STM32F103x8.ld
@@ -27,7 +31,7 @@ add_link_options(
 add_subdirectory(chibios)
 
 add_executable(${PROJECT_NAME}.elf main.c)
-target_link_libraries(${PROJECT_NAME}.elf chibios_hal chibios_rt chibios_oslib)
+target_link_libraries(${PROJECT_NAME}.elf chibios)
 
 add_custom_target(bin ALL arm-none-eabi-objcopy -O binary ${PROJECT_NAME}.elf ${PROJECT_NAME}.bin
 		COMMAND wc -c ${PROJECT_NAME}.bin)
