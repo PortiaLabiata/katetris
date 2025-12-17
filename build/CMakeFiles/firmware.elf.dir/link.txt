@@ -1,0 +1,1 @@
+arm-none-eabi-gcc  -T /home/portia_labiata/katetris/chibios/os/common/startup/ARMCMx/compilers/GCC/ld/STM32F103x8.ld -Wl,--dependency-file=CMakeFiles/firmware.elf.dir/link.d CMakeFiles/firmware.elf.dir/main.c.o -o firmware.elf  chibios/libchibios_hal.a chibios/libchibios_rt.a

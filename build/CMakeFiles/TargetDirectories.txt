@@ -1,0 +1,9 @@
+/home/portia_labiata/katetris/build/CMakeFiles/katetris.elf.dir
+/home/portia_labiata/katetris/build/CMakeFiles/bin.dir
+/home/portia_labiata/katetris/build/CMakeFiles/edit_cache.dir
+/home/portia_labiata/katetris/build/CMakeFiles/rebuild_cache.dir
+/home/portia_labiata/katetris/build/chibios/CMakeFiles/chibios_rt.dir
+/home/portia_labiata/katetris/build/chibios/CMakeFiles/chibios_hal.dir
+/home/portia_labiata/katetris/build/chibios/CMakeFiles/chibios_oslib.dir
+/home/portia_labiata/katetris/build/chibios/CMakeFiles/edit_cache.dir
+/home/portia_labiata/katetris/build/chibios/CMakeFiles/rebuild_cache.dir

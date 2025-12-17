@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/portia_labiata/katetris/build/cmake_install.cmake",
+		"/home/portia_labiata/katetris/build/chibios/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
