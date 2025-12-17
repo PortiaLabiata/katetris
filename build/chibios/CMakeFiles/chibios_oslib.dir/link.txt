@@ -1,2 +1,0 @@
-/usr/bin/ar qc libchibios_oslib.a CMakeFiles/chibios_oslib.dir/os/oslib/src/chdelegates.c.o CMakeFiles/chibios_oslib.dir/os/oslib/src/chfactory.c.o CMakeFiles/chibios_oslib.dir/os/oslib/src/chmboxes.c.o CMakeFiles/chibios_oslib.dir/os/oslib/src/chmemcore.c.o CMakeFiles/chibios_oslib.dir/os/oslib/src/chmemheaps.c.o CMakeFiles/chibios_oslib.dir/os/oslib/src/chmempools.c.o CMakeFiles/chibios_oslib.dir/os/oslib/src/chobjcaches.c.o CMakeFiles/chibios_oslib.dir/os/oslib/src/chpipes.c.o
-/usr/bin/ranlib libchibios_oslib.a
