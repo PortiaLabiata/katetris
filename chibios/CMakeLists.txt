@@ -44,6 +44,8 @@ file(GLOB FILES_OS_SRC os/oslib/src/*.c)
 file(GLOB LIBS_HAL_LLD os/hal/ports/STM32/LLD/*)
 file(GLOB FILES_TEST_SRC os/test/src/*.c)
 
+#--------------------------------------------------
+
 if(BUILD_STREAMS)
 	file(GLOB FILES_SHELL_SRC os/hal/lib/streams/*.c)
 	list(APPEND COMMON_INCLUDES os/hal/lib/streams)
@@ -69,6 +71,8 @@ if(BUILD_SERIAL)
 	list(APPEND LIBS_LLD_ALL USARTv1)
 	list(APPEND FILES_HAL_SRC hal_serial.c)
 endif()
+
+#-------------------------------------------
 
 foreach(LLD_LIB ${LIBS_LLD_ALL})
 	file(GLOB ALL_SRCS ${LLD_LIBS_PATH}/${LLD_LIB}/*.c)
