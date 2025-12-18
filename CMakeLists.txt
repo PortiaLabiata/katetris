@@ -10,7 +10,7 @@ set(LD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/chibios/os/common/startup/ARMCMx/compiler
 
 add_compile_options(
 	-Wall
-	-Os
+	-O0
 	-mcpu=cortex-m3
 	-mthumb
 	-mno-thumb-interwork

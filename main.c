@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
 	palSetPadMode(GPIOA, 10, PAL_MODE_INPUT);
 
 	sdStart(&SD1, NULL);
+	chThdSleepMilliseconds(1);
 	(void)chThdCreateStatic(wa_serial, 
 					THD_WORKING_AREA_SIZE(wa_serial),
 					NORMALPRIO,
