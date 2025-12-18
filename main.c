@@ -1,4 +1,5 @@
 #include "ch.h"
+#include "chthreads.h"
 #include "hal.h"
 #include "hal_pal.h"
 
@@ -7,6 +8,14 @@ static THD_FUNCTION(thd_serial, arg) {
 	while (1) {
 		sdWrite(&SD1, (uint8_t*)"Hello, world!\n", 14);
 		chThdSleepMilliseconds(1000);
+	}
+}
+
+static THD_WORKING_AREA(wa_blink, 128);
+static THD_FUNCTION(thd_blink, arg) {
+	while (1) {
+		palTogglePad(GPIOC, 13);
+		chThdSleepMilliseconds(500);
 	}
 }
 
@@ -21,12 +30,13 @@ int main(int argc, char *argv[]) {
 
 	sdStart(&SD1, NULL);
 	chThdSleepMilliseconds(1);
-	(void)chThdCreateStatic(wa_serial, 
-					THD_WORKING_AREA_SIZE(wa_serial),
+	thread_t *thread_serial = chThdCreateStatic(wa_serial, 
+					sizeof(wa_serial),
 					NORMALPRIO,
 					thd_serial, NULL);
-	while (1) {
-		palTogglePad(GPIOC, 13);
-		chThdSleepMilliseconds(1000);
-	}
+	chThdCreateStatic(wa_blink, 
+					sizeof(wa_blink),
+					NORMALPRIO,
+					thd_blink, NULL);
+	chThdWait(thread_serial);
 }

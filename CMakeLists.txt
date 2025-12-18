@@ -24,7 +24,7 @@ add_link_options(
 	-nostartfiles
 	-flto
 
-	-Wl,--defsym=__main_stack_size__=0x400,--defsym=__process_stack_size__=0x400
+	-Wl,--defsym=__main_stack_size__=0x800,--defsym=__process_stack_size__=0x800
 	-Wl,-L${LD_DIR},-T${LD_DIR}/STM32F103x8.ld
 )
 
