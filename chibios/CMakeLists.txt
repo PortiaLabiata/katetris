@@ -1,7 +1,7 @@
 add_compile_options(-Wno-pointer-to-int-cast)
 
 option(BUILD_SHELL "Build shell" OFF)
-option(BUILD_STREAMS "Build chprintf" OFF)
+option(BUILD_STREAMS "Build chprintf" ON)
 
 option(BUILD_GPIO "Build GPIO" ON)
 option(BUILD_SERIAL "Build serial" OFF)
@@ -47,7 +47,7 @@ file(GLOB FILES_TEST_SRC os/test/src/*.c)
 #--------------------------------------------------
 
 if(BUILD_STREAMS)
-	file(GLOB FILES_SHELL_SRC os/hal/lib/streams/*.c)
+	file(GLOB FILES_STREAMS_SRC os/hal/lib/streams/*.c)
 	list(APPEND COMMON_INCLUDES os/hal/lib/streams)
 endif()
 
@@ -56,9 +56,10 @@ set(LIBS_LLD_ALL SYSTICKv1 TIMv1 DMAv1)
 set(FILES_HAL_SRC hal_st.c hal.c hal_queues.c)
 
 if(BUILD_SHELL)
-	set(FILES_SHELL_SRC 
-		os/various/shell/shell.c
-		os/various/shell/shell_cmd.c)
+	file(GLOB FILES_SHELL_SRC os/various/shell/*.c)
+	file(GLOB RT_TEST_SRC test/rt/source/test/*.c)
+
+	list(APPEND FILES_SHELL_SRC ${RT_TEST_SRC})
 	list(APPEND COMMON_INCLUDES os/various/shell)
 endif()
 
@@ -98,6 +99,7 @@ add_library(
 		${FILES_COMMON_SRC} 
 
 		${FILES_SHELL_SRC}
+		${FILES_STREAMS_SRC}
 
 		# Syscalls
 		os/sb/various/syscalls.c 
