@@ -10,14 +10,18 @@ set(COMMON_INCLUDES
 		os/sb/common
 		os/sb/user
 
+		os/various/shell
+		os/hal/lib/streams
+
 		os/hal/ports/STM32/STM32F1xx
 		os/hal/ports/common/ARMCMx
 
 		os/common/ports/ARM-common 
 		os/common/ports/ARMv7-M 
-		os/common/portability/GCC 
 		os/common/startup/ARMCMx/devices/STM32F1xx
 		os/common/ext/ST/STM32F1xx
+
+		os/common/portability/GCC 
 		os/common/ext/ARM/CMSIS/Core/Include
 
 		os/hal/osal/rt-nil
@@ -31,6 +35,8 @@ file(GLOB FILES_HAL_SRC os/hal/src/*.c)
 file(GLOB FILES_HAL_LLD os/hal/ports/STM32/STM32F1xx/*)
 file(GLOB FILES_OS_SRC os/oslib/src/*.c)
 file(GLOB LIBS_HAL_LLD os/hal/ports/STM32/LLD/*)
+
+file(GLOB FILES_HAL_SHELL os/hal/lib/streams/*.c)
 
 foreach(lib ${LIBS_HAL_LLD})
 	file(GLOB files ${lib}/*.c)
@@ -46,6 +52,7 @@ endforeach()
 
 add_library(
 		chibios STATIC ${FILES_RT_SRC} ${FILES_COMMON} os/sb/various/syscalls.c 
+		os/various/shell/shell.c
 
 		os/common/ports/ARMv7-M/compilers/GCC/chcoreasm.S
 		os/common/startup/ARMCMx/compilers/GCC/crt0_v7m.S
