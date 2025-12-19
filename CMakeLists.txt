@@ -30,7 +30,7 @@ add_link_options(
 
 add_subdirectory(chibios)
 
-add_executable(${PROJECT_NAME}.elf main.c)
+add_executable(${PROJECT_NAME}.elf main.c display.c)
 target_link_libraries(${PROJECT_NAME}.elf chibios)
 
 add_custom_target(bin ALL arm-none-eabi-objcopy -O binary ${PROJECT_NAME}.elf ${PROJECT_NAME}.bin

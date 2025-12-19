@@ -2,79 +2,57 @@
 #include "hal.h"
 #include "chprintf.h"
 
+#include "display.h"
+
 #define GPIO_LED 13
-int flag = 1;
-
-void cmd_on(BaseSequentialStream *s) {
-	flag = 0;
-	chprintf(s, "led on ok");
-	palSetPad(GPIOC, GPIO_LED);
-}
-
-void cmd_off(BaseSequentialStream *s) {
-	flag = 0;
-	chprintf(s, "led off ok");
-	palClearPad(GPIOC, GPIO_LED);
-}
-
-void cmd_blink(BaseSequentialStream *s) {
-	flag = 1;
-	chprintf(s, "led blink ok");
-}
-
-#define streq(a, b) (strcmp(a, b) == 0)
-static THD_WORKING_AREA(wa_shell, 512);
-static THD_FUNCTION(thd_shell, arg) {
+static THD_WORKING_AREA(wa_blink, 128);
+static THD_FUNCTION(thd_blink, arg) {
+	chRegSetThreadName("thd_blink");
 	while (1) {
-		char c = sdGet(&SD1);
+		palTogglePad(GPIOC, GPIO_LED);
+		osalThreadSleepMilliseconds(500);
+	}
+}
 
-		BaseSequentialStream *s = (BaseSequentialStream*)&SD1;
-		switch (c) {
-			case '1':
-				cmd_on(s);
-				break;
-			case '0':
-				cmd_off(s);
-				break;
-			case 'b':
-				cmd_blink(s);
-				break;
-			default:
-				break;
+static THD_WORKING_AREA(wa_video, 512);
+static THD_FUNCTION(thd_video, arg) {
+	chRegSetThreadName("thd_video");
+
+	BaseSequentialStream *s = (BaseSequentialStream*)&SD1;
+	if (disp_init()) {
+		chprintf(s, "Couldn't init I2C\r\n");
+	} else {
+		while (1) {
+			chprintf(s, "\r\nScanning...\r\n");
+			i2c_scan_print(s, i2c_scan());
+			osalThreadSleepMilliseconds(1000);
 		}
 	}
 }
-
-static THD_WORKING_AREA(wa_blink, 128);
-static THD_FUNCTION(thd_blink, arg) {
-	while (1) {
-		while (!flag)
-			chThdSleepMilliseconds(1);
-		palTogglePad(GPIOC, GPIO_LED);
-		chThdSleepMilliseconds(499);
-	}
-}
-
 
 int main(int argc, char *argv[]) {
 	chSysInit();
 	halInit();
 
-	palSetPadMode(GPIOC, 13, PAL_MODE_OUTPUT_PUSHPULL);
+	palSetPadMode(GPIOC, GPIO_LED, PAL_MODE_OUTPUT_PUSHPULL);
 
 	palSetPadMode(GPIOA, 9, PAL_MODE_STM32_ALTERNATE_PUSHPULL);
 	palSetPadMode(GPIOA, 10, PAL_MODE_INPUT);
 
+	palSetPadMode(GPIOB, 6, PAL_MODE_STM32_ALTERNATE_OPENDRAIN);
+	palSetPadMode(GPIOB, 7, PAL_MODE_STM32_ALTERNATE_OPENDRAIN);
+
 	sdStart(&SD1, NULL);
-	chThdCreateStatic(wa_blink, 
+	thread_t *thd = chThdCreateStatic(wa_blink, 
 				sizeof(wa_blink),
 				NORMALPRIO,
 				thd_blink, NULL);
-	thread_t *shthd = chThdCreateStatic(wa_shell,
-				sizeof(wa_shell),
+	(void)chThdCreateStatic(wa_video,
+				sizeof(wa_video),
 				NORMALPRIO,
-				thd_shell, NULL);
-	chThdWait(shthd);
+				thd_video, NULL);
+	
+	chThdWait(thd);
 }
 
 void HardFault_Handler(void) {
