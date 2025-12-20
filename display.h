@@ -1,7 +1,17 @@
 #pragma once
+#include "env.h"
 
+#if !SITL
 #include "ch.h"
 #include "hal.h"
+#else
+#define mutex_t int
+#define chMtxLock(v)
+#define chMtxUnlock(v)
+#define chMtxObjectInit(v)
+#define BaseSequentialStream int
+#endif
+#include <inttypes.h>
 
 #define DISP_COLS 128
 #define DISP_ROWS 8
@@ -33,3 +43,7 @@ void vbuf_draw_rect(vbuf_t *buf, int x, int y, int h, int w);
 	uint8_t _buf = b; \
 	disp_write_data(&_buf, 1); \
 } while (0)
+
+#if SITL
+void sitl_render(vbuf_t *vbuf);
+#endif
