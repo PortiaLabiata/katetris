@@ -109,16 +109,16 @@ int main(int argc, char *argv[]) {
 		c = sdGet(&SD1);
 		switch (c) {
 			case 'a':
-				x -= h;
+				y -= w;
 				break;
 			case 'd':
-				x += h;
-				break;
-			case 'w':
 				y += w;
 				break;
+			case 'w':
+				x -= h;
+				break;
 			case 's':
-				y -= w;
+				x += h;
 				break;
 			default:
 				break;

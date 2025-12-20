@@ -15,8 +15,8 @@
 
 #define DISP_ADDR 60
 
-#if !SITL
 int *i2c_scan() {
+#if !SITL
 	static int status[127] = {0};
 	memset(status, 0, sizeof(status));
 
@@ -35,15 +35,18 @@ int *i2c_scan() {
 		i2cReleaseBus(&I2CD1);
 	}
 	return status;
+#endif
 }
 
 void i2c_scan_print(BaseSequentialStream *s, int status[]) {
+#if !SITL
 	chprintf(s, "Found I2C devices: ");
 	for (int i = 8; i < 127; i++) {
 		if (status[i]) {
 			chprintf(s, "%d ", i);	
 		}
 	}
+#endif
 }
 
 #define CMD_ON 0xAF
@@ -52,22 +55,37 @@ void i2c_scan_print(BaseSequentialStream *s, int status[]) {
 #define CMD_ALL_ON 0xA5
 
 int disp_write_cmd(uint8_t *bs, int size) {
+#if !SITL
 	uint8_t buf[size+1];
 	buf[0] = 0x00;
 	memcpy(buf+1, bs, size);
 
 	return i2cMasterTransmit(&I2CD1, DISP_ADDR, buf, size+1, NULL, 0);
+#else
+	return 0;
+#endif
 }
 
 int disp_write_data(uint8_t *bs, int size) {
+#if !SITL
 	uint8_t buf[size+1];
 	buf[0] = 1 << 6;
 	memcpy(buf+1, bs, size);
 
 	return i2cMasterTransmit(&I2CD1, DISP_ADDR, buf, size+1, NULL, 0);
+#else
+	return 0;
+#endif
 }
 
+#if SITL
+#define ZOOM 3
+static SDL_Window *window = NULL;
+static SDL_Renderer *renderer  = NULL;
+#endif
+
 int disp_init() {
+#if !SITL
 	uint8_t _b[4];
 
 	disp_write_cmdb(CMD_OFF); // Sleep mode
@@ -81,24 +99,12 @@ int disp_init() {
 
 	disp_write_cmdb(CMD_ON);
 	return 0;
-}
-
 #else
-
-#define ZOOM 3
-static SDL_Window *window = NULL;
-static SDL_Renderer *renderer  = NULL;
-
-static void draw_pixel(int x, int y) {
-	SDL_RenderFillRect(renderer, &(SDL_Rect){x*ZOOM, y*ZOOM, ZOOM, ZOOM});
-}
-
-int disp_init() {
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
 		return -1;
 	}
 	window = SDL_CreateWindow("SITL", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, \
-					DISP_COLS*ZOOM, DISP_ROWS*8*ZOOM, \
+					DISP_ROWS*8*ZOOM, DISP_COLS*ZOOM, \
 					SDL_WINDOW_ALLOW_HIGHDPI);
 	if (!window) {
 		return -2;
@@ -112,9 +118,17 @@ int disp_init() {
 	noecho();
 	cbreak();
 	nodelay(stdscr, TRUE);
+#endif
+}
+
+static void draw_pixel(int x, int y) {
+#if SITL
+	SDL_RenderFillRect(renderer, &(SDL_Rect){x*ZOOM, y*ZOOM, ZOOM, ZOOM});
+#endif
 }
 
 void sitl_render(vbuf_t *vbuf) {
+#if SITL
 	SDL_Event evt;
 	SDL_PollEvent(&evt);
 	if (evt.type == SDL_QUIT) {
@@ -133,16 +147,15 @@ void sitl_render(vbuf_t *vbuf) {
 			uint8_t b = vbuf->buf[i][j];
 			for (int k = 0; k < 8; k++) {
 				if ((b >> k) & 0x01) {
-					draw_pixel(i, j*8+k);
+					draw_pixel(j*8+k, i);
 				}
 			}
 		}
 	}
 
 	SDL_RenderPresent(renderer);
-}
-
 #endif
+}
 
 void vbuf_init(vbuf_t *buf) {
 	chMtxObjectInit(&buf->mtx);
