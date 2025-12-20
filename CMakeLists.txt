@@ -24,7 +24,8 @@ add_link_options(
 	-nostartfiles
 	-flto
 
-	-Wl,--defsym=__main_stack_size__=0x800,--defsym=__process_stack_size__=0x800
+	-Wl,--defsym=__main_stack_size__=0x400
+	-Wl,--defsym=__process_stack_size__=0x400
 	-Wl,-L${LD_DIR},-T${LD_DIR}/STM32F103x8.ld
 )
 
@@ -34,4 +35,4 @@ add_executable(${PROJECT_NAME}.elf main.c display.c)
 target_link_libraries(${PROJECT_NAME}.elf chibios)
 
 add_custom_target(bin ALL arm-none-eabi-objcopy -O binary ${PROJECT_NAME}.elf ${PROJECT_NAME}.bin
-		COMMAND wc -c ${PROJECT_NAME}.bin)
+		COMMAND arm-none-eabi-size ${PROJECT_NAME}.elf)
