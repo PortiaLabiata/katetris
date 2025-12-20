@@ -88,12 +88,17 @@ int disp_init() {
 #define ZOOM 3
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer  = NULL;
+
+static void draw_pixel(int x, int y) {
+	SDL_RenderFillRect(renderer, &(SDL_Rect){x*ZOOM, y*ZOOM, ZOOM, ZOOM});
+}
+
 int disp_init() {
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
 		return -1;
 	}
 	window = SDL_CreateWindow("SITL", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, \
-					DISP_COLS, DISP_ROWS*8, \
+					DISP_COLS*ZOOM, DISP_ROWS*8*ZOOM, \
 					SDL_WINDOW_ALLOW_HIGHDPI);
 	if (!window) {
 		return -2;
@@ -128,7 +133,7 @@ void sitl_render(vbuf_t *vbuf) {
 			uint8_t b = vbuf->buf[i][j];
 			for (int k = 0; k < 8; k++) {
 				if ((b >> k) & 0x01) {
-					SDL_RenderDrawPoint(renderer, i, j*8+k);
+					draw_pixel(i, j*8+k);
 				}
 			}
 		}
