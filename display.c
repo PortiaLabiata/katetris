@@ -104,12 +104,18 @@ int disp_init() {
 		return -3;
 	}
 	initscr();
+	noecho();
+	cbreak();
+	nodelay(stdscr, TRUE);
 }
 
 void sitl_render(vbuf_t *vbuf) {
 	SDL_Event evt;
 	SDL_PollEvent(&evt);
 	if (evt.type == SDL_QUIT) {
+		SDL_DestroyRenderer(renderer);
+		SDL_DestroyWindow(window);
+		SDL_Quit();
 		endwin();
 		exit(0);
 	}

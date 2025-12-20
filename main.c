@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <poll.h>
 #include <curses.h>
+#include <stdlib.h>
 
 #define SD1 0
 #define osalThreadSleepMilliseconds(v) do { \
