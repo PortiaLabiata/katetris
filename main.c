@@ -23,6 +23,7 @@
 #endif
 
 #include "display.h"
+#include "tetris.h"
 
 #if !SITL
 #define GPIO_LED 13
@@ -66,6 +67,7 @@ void gpio_init() {
 }
 #endif // SITL
 
+static blockbuf_t bbuf = {.idx = 0};
 int main(int argc, char *argv[]) {
 #if !SITL
 	chSysInit();
@@ -95,36 +97,49 @@ int main(int argc, char *argv[]) {
 				NORMALPRIO,
 				thd_video, NULL);
 #endif // SITL
-	int x, y, h, w;
-	x = y = 0;
-	h = w = 20;
-
 	vbuf_clear(&vbuf);
-	vbuf_draw_rect(&vbuf, x, y, h, w);
+	bbuf.buf[0] = block_gamma;
+	bbuf.idx++;
+	static time_t t_last = 0;
+	t_last = time(NULL);
 	while (1) {
 		char c = 0;
 #if SITL
 		sitl_render(&vbuf);
 #endif
 		c = sdGet(&SD1);
-		switch (c) {
-			case 'a':
-				y -= w;
-				break;
-			case 'd':
-				y += w;
-				break;
-			case 'w':
-				x -= h;
-				break;
-			case 's':
-				x += h;
-				break;
-			default:
-				break;
+		block_t *blk = &bbuf.buf[bbuf.idx-1];
+		if (!blk->fell) {
+			switch (c) {
+				case 'a':
+					blk->y -= 1;
+					break;
+				case 'd':
+					blk->y += 1;
+					break;
+				case 's':
+					blk->x += 1;
+					break;
+				case 'q':
+					block_rotr(blk);
+					break;
+				case 'e':
+					block_rotl(blk);
+					break;
+				default:
+					break;
+			}
 		}
 		vbuf_clear(&vbuf);
-		vbuf_draw_rect(&vbuf, x, y, h, w);
+		for (int i = 0; i < bbuf.idx; i++) {
+			block_draw(&vbuf, &bbuf.buf[i]);
+		}
+
+		time_t t_now = time(NULL);
+		if (t_now - t_last >= 1) {
+			t_last = t_now;
+			blockbuf_tick(&bbuf);
+		}
 		osalThreadSleepMilliseconds(20);
 	}
 }

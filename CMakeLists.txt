@@ -41,5 +41,6 @@ find_package(SDL2 REQUIRED)
 add_executable(sitl main.c display.c tetris.c)
 target_include_directories(sitl PUBLIC ${SDL_INCLUDE_DIRS})
 target_link_libraries(sitl PUBLIC SDL2::SDL2 ncurses)
+target_compile_options(sitl PUBLIC -g)
 
 endif()
