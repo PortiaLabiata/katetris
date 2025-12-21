@@ -54,3 +54,5 @@ void block_rotr(block_t *blk);
 void block_rotl(block_t *blk);
 void block_draw(vbuf_t *vbuf, block_t *blk);
 bool blockbuf_tick(blockbuf_t *buf);
+void blockbuf_push(blockbuf_t *buf, const block_t *blk);
+block_t *blockbuf_last(blockbuf_t *buf);

@@ -22,8 +22,15 @@
 #define sdGet(v) getch()
 #endif
 
+#if SITL
+typedef time_t mytime_t;
+#else
+typedef systime_t mytime_t;
+#endif
+
 #include "display.h"
 #include "tetris.h"
+#include "common.h"
 
 #if !SITL
 #define GPIO_LED 13
@@ -67,6 +74,14 @@ void gpio_init() {
 }
 #endif // SITL
 
+mytime_t gettime() {
+#if SITL
+	return time(NULL);
+#else
+	return chTimeI2S(chVTGetSystemTime());
+#endif
+}
+
 static blockbuf_t bbuf = {.idx = 0};
 int main(int argc, char *argv[]) {
 #if !SITL
@@ -98,17 +113,16 @@ int main(int argc, char *argv[]) {
 				thd_video, NULL);
 #endif // SITL
 	vbuf_clear(&vbuf);
-	bbuf.buf[0] = block_gamma;
-	bbuf.idx++;
-	static time_t t_last = 0;
-	t_last = time(NULL);
+	blockbuf_push(&bbuf, &block_gamma);
+	static mytime_t t_last = 0;
+	t_last = gettime();
 	while (1) {
 		char c = 0;
 #if SITL
 		sitl_render(&vbuf);
 #endif
-		c = sdGet(&SD1);
-		block_t *blk = &bbuf.buf[bbuf.idx-1];
+		//c = sdGet(&SD1);
+		block_t *blk = blockbuf_last(&bbuf);
 		if (!blk->fell) {
 			switch (c) {
 				case 'a':
@@ -135,10 +149,12 @@ int main(int argc, char *argv[]) {
 			block_draw(&vbuf, &bbuf.buf[i]);
 		}
 
-		time_t t_now = time(NULL);
-		if (t_now - t_last >= 1) {
+		mytime_t t_now = gettime();
+		if (abs(t_now - t_last) >= 1) {
 			t_last = t_now;
-			blockbuf_tick(&bbuf);
+			if (blockbuf_tick(&bbuf)) {
+				blockbuf_push(&bbuf, &block_gamma);		
+			}
 		}
 		osalThreadSleepMilliseconds(20);
 	}

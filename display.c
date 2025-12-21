@@ -121,11 +121,11 @@ int disp_init() {
 #endif
 }
 
-static void draw_pixel(int x, int y) {
 #if SITL
+static void draw_pixel(int x, int y) {
 	SDL_RenderFillRect(renderer, &(SDL_Rect){x*ZOOM, y*ZOOM, ZOOM, ZOOM});
-#endif
 }
+#endif
 
 void sitl_render(vbuf_t *vbuf) {
 #if SITL

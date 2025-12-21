@@ -1,5 +1,6 @@
 #include "env.h"
 #include "tetris.h"
+#include "common.h"
 
 void block_rotr(block_t *blk) {
 	blk->ori = (blk->ori + 1) % 4;
@@ -23,10 +24,6 @@ void block_draw(vbuf_t *vbuf, block_t *blk) {
 	}
 }
 
-int abs(int x) {
-	return x >= 0 ? x : -x;
-}
-
 bool block_collides(block_t *blka, block_t *blkb) {
 	if (abs(blka->y - blkb->y) > 3 || \
 		abs(blka->x - blkb->x) > 2) {
@@ -36,7 +33,7 @@ bool block_collides(block_t *blka, block_t *blkb) {
 }
 
 bool blockbuf_tick(blockbuf_t *buf) {
-	block_t *last = &buf->buf[buf->idx-1];
+	block_t *last = blockbuf_last(buf);
 	for (int i = 0; i < buf->idx-1; i++) {
 		if (block_collides(last, &buf->buf[i])) {
 			last->fell = true;
@@ -48,4 +45,15 @@ bool blockbuf_tick(blockbuf_t *buf) {
 		return true;
 	}
 	last->x++;
+	return false;
+}
+
+void blockbuf_push(blockbuf_t *buf, const block_t *blk) {
+	if (buf->idx < BUFSIZE) {
+		buf->buf[buf->idx++] = *blk;
+	}
+}
+
+block_t *blockbuf_last(blockbuf_t *buf) {
+	return &buf->buf[buf->idx-1];
 }
