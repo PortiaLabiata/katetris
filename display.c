@@ -80,8 +80,8 @@ int disp_write_data(uint8_t *bs, int size) {
 
 #if SITL
 #define ZOOM 3
-static SDL_Window *window = NULL;
-static SDL_Renderer *renderer  = NULL;
+SDL_Window *window = NULL;
+SDL_Renderer *renderer  = NULL;
 #endif
 
 int disp_init() {

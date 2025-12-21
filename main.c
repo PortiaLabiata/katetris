@@ -82,7 +82,8 @@ mytime_t gettime() {
 #endif
 }
 
-static blockbuf_t bbuf = {.idx = 0};
+static grid_t grid;
+
 int main(int argc, char *argv[]) {
 #if !SITL
 	chSysInit();
@@ -101,6 +102,7 @@ int main(int argc, char *argv[]) {
 
 	disp_init();
 	vbuf_init(&vbuf);
+	grid_clear(grid);
 
 #if !SITL
 	chThdCreateStatic(wa_blink, 
@@ -113,50 +115,55 @@ int main(int argc, char *argv[]) {
 				thd_video, NULL);
 #endif // SITL
 	vbuf_clear(&vbuf);
-	blockbuf_push(&bbuf, &block_gamma);
 	static mytime_t t_last = 0;
 	t_last = gettime();
+
+	block_t blk = block_gamma;
 	while (1) {
 		char c = 0;
 #if SITL
 		sitl_render(&vbuf);
 #endif
-		//c = sdGet(&SD1);
-		block_t *blk = blockbuf_last(&bbuf);
-		if (!blk->fell) {
-			switch (c) {
-				case 'a':
-					blk->y -= 1;
-					break;
-				case 'd':
-					blk->y += 1;
-					break;
-				case 's':
-					blk->x += 1;
-					break;
-				case 'q':
-					block_rotr(blk);
-					break;
-				case 'e':
-					block_rotl(blk);
-					break;
-				default:
-					break;
-			}
+		c = sdGet(&SD1);
+		switch (c) {
+			case 'a':
+				blk.y -= 1;
+				break;
+			case 'd':
+				blk.y += 1;
+				break;
+			case 's':
+				blk.x += 1;
+				break;
+			case 'q':
+				block_rotr(&blk);
+				break;
+			case 'e':
+				block_rotl(&blk);
+				break;
+			default:
+				break;
 		}
 		vbuf_clear(&vbuf);
-		for (int i = 0; i < bbuf.idx; i++) {
-			block_draw(&vbuf, &bbuf.buf[i]);
-		}
 
 		mytime_t t_now = gettime();
 		if (abs(t_now - t_last) >= 1) {
 			t_last = t_now;
-			if (blockbuf_tick(&bbuf)) {
-				blockbuf_push(&bbuf, &block_gamma);		
+			blk.x += 1;
+		}
+		if (blk.x >= GRID_ROWS-BLOCK_HEIGHT || \
+				block_collides(&blk, grid)) {
+			block_add(&blk, grid);
+			blk = block_gamma;
+			for (int i = GRID_ROWS-1; grid[i] && i >= 0; i--) {
+				if (grid_check(grid, i)) {
+					grid_shift(grid, i);
+				}
 			}
 		}
-		osalThreadSleepMilliseconds(20);
+		block_draw(&vbuf, &blk);
+		grid_draw(&vbuf, grid);
+		osalThreadSleepMilliseconds(10);
 	}
 }
 

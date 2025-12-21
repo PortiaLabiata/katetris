@@ -10,9 +10,12 @@ enum ori_e {
 	ORI_EAST,
 	ORI_SOUTH,
 	ORI_WEST,
+	ORI_SIZE,
 };
 
-typedef uint8_t pattern_t[3];
+#define BLOCK_HEIGHT 3
+typedef uint8_t pattern_row_t;
+typedef pattern_row_t pattern_t[BLOCK_HEIGHT];
 typedef struct {
 	const pattern_t *ptrs; // North, east, south and west
 	enum ori_e ori;
@@ -20,7 +23,7 @@ typedef struct {
 	bool fell;
 } block_t;
 
-static const pattern_t patterns_gamma[4] = {
+static const pattern_t patterns_gamma[ORI_SIZE] = {
 		{0b110, 
 		 0b100, 
 		 0b100},
@@ -44,15 +47,33 @@ static const block_t block_gamma = {
 	.y = 0,
 };
 
-#define BUFSIZE 50
-typedef struct {
-	block_t buf[BUFSIZE];
-	size_t idx;
-} blockbuf_t;
+// TODO: add normal grid size calculation
+#if DISP_COLS % GRID_STEP > 0
+	#define GRID_ROWS DISP_COLS/GRID_STEP+1
+#else
+	#define GRID_ROWS DISP_COLS/GRID_STEP
+#endif
+#if DISP_ROWS % GRID_STEP > 0
+	#define GRID_COLS DISP_ROWS*8/GRID_STEP+1
+#else
+	#define GRID_COLS DISP_ROWS*8/GRID_STEP
+#endif
+
+#if GRID_COLS <= 16
+typedef uint16_t grid_row_t;
+#else
+typedef uint32_t grid_row_t;
+#endif
+
+typedef grid_row_t grid_t[GRID_ROWS];
 
 void block_rotr(block_t *blk);
 void block_rotl(block_t *blk);
 void block_draw(vbuf_t *vbuf, block_t *blk);
-bool blockbuf_tick(blockbuf_t *buf);
-void blockbuf_push(blockbuf_t *buf, const block_t *blk);
-block_t *blockbuf_last(blockbuf_t *buf);
+bool block_collides(block_t *blk, grid_t grid);
+void block_add(block_t *blk, grid_t grid);
+
+void grid_clear(grid_t grid);
+void grid_draw(vbuf_t *vbuf, grid_t grid);
+void grid_shift(grid_t grid, size_t start_idx);
+bool grid_check(grid_t grid, size_t idx);

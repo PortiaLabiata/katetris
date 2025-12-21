@@ -2,6 +2,10 @@
 #include "tetris.h"
 #include "common.h"
 
+#if SITL
+#include <SDL2/SDL.h>
+#endif
+
 void block_rotr(block_t *blk) {
 	blk->ori = (blk->ori + 1) % 4;
 }
@@ -24,36 +28,50 @@ void block_draw(vbuf_t *vbuf, block_t *blk) {
 	}
 }
 
-bool block_collides(block_t *blka, block_t *blkb) {
-	if (abs(blka->y - blkb->y) > 3 || \
-		abs(blka->x - blkb->x) > 2) {
-		return false;	
+void grid_clear(grid_t grid) {
+	for (int i = 0; i < GRID_ROWS; i++) {
+		grid[i] = 0;
 	}
-	return blkb->ptrs[blka->ori][0] & blkb->ptrs[blkb->ori][2];
 }
 
-bool blockbuf_tick(blockbuf_t *buf) {
-	block_t *last = blockbuf_last(buf);
-	for (int i = 0; i < buf->idx-1; i++) {
-		if (block_collides(last, &buf->buf[i])) {
-			last->fell = true;
-			return true;	
+bool block_collides(block_t *blk, grid_t grid) {
+	for (int i = 0; i < BLOCK_HEIGHT; i++) {
+		pattern_row_t block_cur = blk->ptrs[blk->ori][i];
+		grid_row_t grid_cur = grid[blk->x+i+1];
+
+		if ((block_cur << blk->y) & grid_cur) {
+			return true;
 		}
 	}
-	if (last->x >= 13) {
-		last->fell = true;
-		return true;
-	}
-	last->x++;
 	return false;
 }
 
-void blockbuf_push(blockbuf_t *buf, const block_t *blk) {
-	if (buf->idx < BUFSIZE) {
-		buf->buf[buf->idx++] = *blk;
+void block_add(block_t *blk, grid_t grid) {
+	for (int i = blk->x; i < blk->x+BLOCK_HEIGHT; i++) {
+		grid[i] |= (blk->ptrs[blk->ori][i-blk->x] << blk->y);
 	}
 }
 
-block_t *blockbuf_last(blockbuf_t *buf) {
-	return &buf->buf[buf->idx-1];
+void grid_draw(vbuf_t *vbuf, grid_t grid) {
+	for (int i = 0; i < GRID_ROWS; i++) {
+		for (int j = 0; j < GRID_COLS; j++) {
+			if (grid[i] & (1 << j)) {
+				suppx_draw(vbuf, i, j);
+			}
+		}
+	}
+}
+
+void grid_shift(grid_t grid, size_t start_idx) {
+	for (int i = start_idx; grid[i] != 0; i--) {
+		grid[i] = grid[i-1];
+	}
+}
+
+bool grid_check(grid_t grid, size_t idx) {
+	int res = grid[idx] & 0x01;
+	for (int i = 0; i < GRID_COLS; i++) {
+		res &= ((grid[idx] >> i) & 0x01);
+	}
+	return res;
 }
