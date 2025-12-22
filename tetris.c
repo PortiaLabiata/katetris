@@ -63,7 +63,7 @@ void grid_draw(vbuf_t *vbuf, grid_t grid) {
 }
 
 void grid_shift(grid_t grid, size_t start_idx) {
-	for (int i = start_idx; grid[i] != 0; i--) {
+	for (int i = start_idx; i > 0 && grid[i] != 0; i--) {
 		grid[i] = grid[i-1];
 	}
 }

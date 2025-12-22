@@ -1,130 +1,66 @@
 #include "env.h"
-
-#if !SITL
-#include "ch.h"
-#include "hal.h"
-#include "chprintf.h"
-#else
-#include <time.h>
-#include <stdio.h>
-#include <poll.h>
-#include <curses.h>
-#include <stdlib.h>
-
-#define SD1 0
-#define osalThreadSleepMilliseconds(v) do { \
-		struct timespec t = { \
-			.tv_sec = 0, \
-			.tv_nsec = v*1000, \
-		}; \
-		nanosleep(&t, NULL); \
-} while (0)
-#define sdGet(v) getch()
-#endif
-
-#if SITL
-typedef time_t mytime_t;
-#else
-typedef systime_t mytime_t;
-#endif
-
-#include "display.h"
 #include "tetris.h"
 #include "common.h"
+#include "impl.h"
 
-#if !SITL
-#define GPIO_LED 13
 static THD_WORKING_AREA(wa_blink, 64);
 static THD_FUNCTION(thd_blink, arg) {
-	chRegSetThreadName("thd_blink");
 	while (1) {
-		palTogglePad(GPIOC, GPIO_LED);
-		osalThreadSleepMilliseconds(500);
+		hw->led_toggle();
+		hw->delay(500);
 	}
 }
-#endif // SITL
 
 static vbuf_t vbuf;
+static grid_t grid;
 
-#if !SITL
 static THD_WORKING_AREA(wa_video, 128);
 static THD_FUNCTION(thd_video, arg) {
-	chRegSetThreadName("thd_video");
-
 	while (1) {
-		chMtxLock(&vbuf.mtx);
-		for (int i = 0; i < DISP_COLS; i++) {
-			for (int j = 0; j < DISP_ROWS; j++) {
-				disp_write_datab(vbuf.buf[i][j]);	
-			}
-		}
-		chMtxUnlock(&vbuf.mtx);
-		osalThreadSleepMilliseconds(20);
+#if !SITL
+		thd->lock(&vbuf.mtx);
+		hw->display_update(&vbuf);	
+		thd->unlock(&vbuf.mtx);
+#endif
+		hw->delay(10);
 	}
 }
 
-void gpio_init() {
-	palSetPadMode(GPIOC, GPIO_LED, PAL_MODE_OUTPUT_PUSHPULL);
+thd_handle_t threads[] = {
+	{.wa = wa_blink, 
+	 .wa_size = sizeof(wa_blink), 
+	 .prio = NORMALPRIO, 
+	 .func = thd_blink},
 
-	palSetPadMode(GPIOA, 9, PAL_MODE_STM32_ALTERNATE_PUSHPULL);
-	palSetPadMode(GPIOA, 10, PAL_MODE_INPUT);
-
-	palSetPadMode(GPIOB, 6, PAL_MODE_STM32_ALTERNATE_OPENDRAIN);
-	palSetPadMode(GPIOB, 7, PAL_MODE_STM32_ALTERNATE_OPENDRAIN);
-}
-#endif // SITL
-
-mytime_t gettime() {
-#if SITL
-	return time(NULL);
-#else
-	return chTimeI2S(chVTGetSystemTime());
-#endif
-}
-
-static grid_t grid;
+	{.wa = wa_video,
+	 .wa_size = sizeof(wa_video),
+	 .prio = NORMALPRIO,
+	 .func = thd_video},
+};
 
 int main(int argc, char *argv[]) {
-#if !SITL
-	chSysInit();
-	halInit();
-	gpio_init();
-	
-	sdStart(&SD1, NULL);
+	if (!hw->init()) {
+		hw->fatal_error("system");
+	}
+	if (!hw->display_init()) {
+		hw->fatal_error("display");
+	}
 
-	const I2CConfig cfg = {
-		.op_mode = OPMODE_I2C,
-		.clock_speed = 100000,
-		.duty_cycle = STD_DUTY_CYCLE,
-	};
-	i2cStart(&I2CD1, &cfg);
-#endif
-
-	disp_init();
 	vbuf_init(&vbuf);
 	grid_clear(grid);
 
-#if !SITL
-	chThdCreateStatic(wa_blink, 
-				sizeof(wa_blink),
-				NORMALPRIO,
-				thd_blink, NULL);
-	(void)chThdCreateStatic(wa_video,
-				sizeof(wa_video),
-				NORMALPRIO,
-				thd_video, NULL);
-#endif // SITL
+	for (int i = 0; i < sizeof(threads)/sizeof(thd_handle_t); i++) {
+		thd->create(&threads[i]);
+	}
+
 	vbuf_clear(&vbuf);
-	static mytime_t t_last = 0;
-	t_last = gettime();
+	static uint32_t t_last = 0;
+	t_last = hw->millis();
 
 	block_t blk = block_gamma;
+	int score = 0;
 	while (1) {
-		char c = 0;
-#if SITL
-		sitl_render(&vbuf);
-#endif
-		c = sdGet(&SD1);
+		char c = hw->serial_getch();
 		switch (c) {
 			case 'a':
 				blk.y -= 1;
@@ -144,10 +80,13 @@ int main(int argc, char *argv[]) {
 			default:
 				break;
 		}
+		// FIXME: duct tape!!!
+		blk.y = bound(blk.y, -1, 
+						GRID_COLS-BLOCK_HEIGHT+1);
 		vbuf_clear(&vbuf);
 
-		mytime_t t_now = gettime();
-		if (abs(t_now - t_last) >= 1) {
+		uint32_t t_now = hw->millis();
+		if (t_now - t_last >= 1000) {
 			t_last = t_now;
 			blk.x += 1;
 		}
@@ -157,13 +96,17 @@ int main(int argc, char *argv[]) {
 			blk = block_gamma;
 			for (int i = GRID_ROWS-1; grid[i] && i >= 0; i--) {
 				if (grid_check(grid, i)) {
+					score++;
 					grid_shift(grid, i);
 				}
 			}
 		}
 		block_draw(&vbuf, &blk);
 		grid_draw(&vbuf, grid);
-		osalThreadSleepMilliseconds(10);
+#if SITL
+		hw->display_update(&vbuf);
+#endif
+		hw->delay(10);
 	}
 }
 
