@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include "display.h"
 
-#define GRID_STEP 8
+#define GRID_STEP 16
 enum ori_e {
 	ORI_NORTH = 0,
 	ORI_EAST,

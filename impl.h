@@ -10,8 +10,8 @@ typedef mutex_t mutex_impl_t;
 typedef SDL_mutex *mutex_impl_t;
 #endif
 
-#define DISP_COLS 128
-#define DISP_ROWS 8
+#define DISP_COLS 240
+#define DISP_ROWS 30
 typedef struct {
 	uint8_t buf[DISP_COLS][DISP_ROWS];
 	mutex_impl_t mtx;
@@ -35,7 +35,7 @@ typedef struct {
 
 #if SITL
 typedef uint32_t tprio_t;
-typedef int tfunc_t(void *);
+typedef int (*tfunc_t)(void *);
 #endif
 
 typedef struct {

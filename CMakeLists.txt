@@ -10,6 +10,8 @@ endif()
 configure_file(env.h.in env.h)
 include_directories(${PROJECT_BINARY_DIR})
 
+option(BUILD_TEST "Build test firmware" OFF)
+
 if(NOT SITL)
 
 enable_language(ASM)
@@ -28,10 +30,21 @@ set(UC_LINK_OPTIONS -mcpu=cortex-m3 -mthumb --specs=nosys.specs -fno-exceptions
 
 add_subdirectory(chibios)
 
+macro(add_uc_executable name files)
+	add_executable(${name} ${files})
+	target_compile_options(${name} PUBLIC ${UC_COMPILE_OPTIONS})
+	target_link_options(${name} PUBLIC ${UC_LINK_OPTIONS})
+	target_link_libraries(${name} chibios)
+endmacro()
+
 add_executable(${PROJECT_NAME}.elf main.c display.c tetris.c common.c impl_stm32.c)
 target_compile_options(${PROJECT_NAME}.elf PUBLIC ${UC_COMPILE_OPTIONS})
 target_link_options(${PROJECT_NAME}.elf PUBLIC ${UC_LINK_OPTIONS})
 target_link_libraries(${PROJECT_NAME}.elf chibios)
+
+if(BUILD_TEST)
+	add_uc_executable(test_st7789.elf test_st7789.c)
+endif()
 
 add_custom_target(bin ALL arm-none-eabi-objcopy -O binary ${PROJECT_NAME}.elf ${PROJECT_NAME}.bin
 		COMMAND arm-none-eabi-size ${PROJECT_NAME}.elf)
