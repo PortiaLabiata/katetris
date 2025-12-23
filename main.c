@@ -58,31 +58,37 @@ int main(int argc, char *argv[]) {
 	t_last = hw->millis();
 
 	block_t blk = block_gamma;
+	bbox_t bbox = get_bbox(blk.ptrs[blk.ori]);
 	int score = 0;
+
 	while (1) {
 		char c = hw->serial_getch();
 		switch (c) {
 			case 'a':
-				blk.y -= 1;
+				if (blk.y+bbox.y > 0) {
+					blk.y -= 1;
+				}
 				break;
 			case 'd':
-				blk.y += 1;
+				if (blk.y+bbox.y < GRID_COLS-bbox.sizey) {
+					blk.y += 1;
+				}
 				break;
 			case 's':
 				blk.x += 1;
 				break;
-			case 'q':
-				block_rotr(&blk);
-				break;
 			case 'e':
 				block_rotl(&blk);
+				bbox = get_bbox(blk.ptrs[blk.ori]);
 				break;
 			default:
 				break;
 		}
-		// FIXME: duct tape!!!
-		blk.y = bound(blk.y, -1, 
-						GRID_COLS-BLOCK_HEIGHT+1);
+
+		if (blk.x+bbox.x == GRID_ROWS-bbox.sizex) {
+			goto collision;
+		}
+
 		vbuf_clear(&vbuf);
 
 		uint32_t t_now = hw->millis();
@@ -90,10 +96,12 @@ int main(int argc, char *argv[]) {
 			t_last = t_now;
 			blk.x += 1;
 		}
-		if (blk.x >= GRID_ROWS-BLOCK_HEIGHT || \
-				block_collides(&blk, grid)) {
+		if (block_collides(&blk, grid)) {
+collision:
 			block_add(&blk, grid);
 			blk = block_gamma;
+			bbox = get_bbox(blk.ptrs[blk.ori]);
+
 			for (int i = GRID_ROWS-1; grid[i] && i >= 0; i--) {
 				if (grid_check(grid, i)) {
 					score++;

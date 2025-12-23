@@ -20,8 +20,12 @@ typedef struct {
 	const pattern_t *ptrs; // North, east, south and west
 	enum ori_e ori;
 	int x, y;
-	bool fell;
 } block_t;
+
+typedef struct {
+	int x, y;
+	int sizex, sizey;
+} bbox_t;
 
 static const pattern_t patterns_gamma[ORI_SIZE] = {
 		{0b110, 
@@ -77,3 +81,4 @@ void grid_clear(grid_t grid);
 void grid_draw(vbuf_t *vbuf, grid_t grid);
 void grid_shift(grid_t grid, size_t start_idx);
 bool grid_check(grid_t grid, size_t idx);
+bbox_t get_bbox(const pattern_t ptr);

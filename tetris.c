@@ -1,6 +1,7 @@
 #include "env.h"
 #include "tetris.h"
 #include "common.h"
+#include <limits.h>
 
 #if SITL
 #include <SDL2/SDL.h>
@@ -73,5 +74,26 @@ bool grid_check(grid_t grid, size_t idx) {
 	for (int i = 0; i < GRID_COLS; i++) {
 		res &= ((grid[idx] >> i) & 0x01);
 	}
+	return res;
+}
+
+bbox_t get_bbox(const pattern_t ptr) {
+	bbox_t res = {0};
+	res.x = res.y = INT_MAX;
+	res.sizex = res.sizey = INT_MIN;
+
+	for (int i = 0; i < BLOCK_HEIGHT; i++) {
+		for (int j = 0; j < BLOCK_HEIGHT; j++) {
+			if ((ptr[i] >> j) & 0x01) {
+				res.x = MIN(res.x, i);		
+				res.y = MIN(res.y, j);
+
+				res.sizex = MAX(res.sizex, i);
+				res.sizey = MAX(res.sizey, j);
+			}
+		}
+	}
+	res.sizex -= res.x-1;
+	res.sizey -= res.y-1;
 	return res;
 }
