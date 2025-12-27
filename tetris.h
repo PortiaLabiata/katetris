@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "display.h"
+#include "impl.h"
 
 #define GRID_STEP 16
 enum ori_e {
@@ -21,11 +22,6 @@ typedef struct {
 	enum ori_e ori;
 	int x, y;
 } block_t;
-
-typedef struct {
-	int x, y;
-	int sizex, sizey;
-} bbox_t;
 
 static const pattern_t patterns_gamma[ORI_SIZE] = {
 		{0b110, 

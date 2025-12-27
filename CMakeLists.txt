@@ -7,10 +7,12 @@ if(SITL)
 else()
 	set(CMAKE_C_COMPILER arm-none-eabi-gcc)
 endif()
-configure_file(env.h.in env.h)
-include_directories(${PROJECT_BINARY_DIR})
 
 option(BUILD_TEST "Build test firmware" OFF)
+option(SITL_OVERLAY "Build SITL with overlay features" OFF)
+
+configure_file(env.h.in env.h)
+include_directories(${PROJECT_BINARY_DIR})
 
 if(NOT SITL)
 

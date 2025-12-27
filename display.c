@@ -41,3 +41,25 @@ void vbuf_draw_rect(vbuf_t *vbuf, int x, int y, int h, int w) {
 	}
 	thd->unlock(&vbuf->mtx);
 }
+
+void vbuf_set_flag(vbuf_t *vbuf) {
+	thd->lock(&vbuf->mtx);
+	vbuf->clear_flag = true;
+	thd->unlock(&vbuf->mtx);
+}
+
+bool bbox_stack_push(bbox_stack_t *stack, bbox_t *box) {
+	if (stack->size < STACKSIZE) {
+		stack->arr[stack->size++] = *box;
+		return true;
+	}
+	return false;
+}
+
+bool bbox_stack_pop(bbox_stack_t *stack, bbox_t *box) {
+	if (stack->size) {
+		*box = stack->arr[--stack->size];
+		return true;
+	}
+	return false;
+}

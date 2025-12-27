@@ -6,6 +6,7 @@
 
 #include <SDL2/SDL.h>
 #include <curses.h>
+#include "common.h"
 
 hwiface_t hwiface_sitl = {
 	.delay = delay_sitl,
@@ -17,13 +18,13 @@ hwiface_t hwiface_sitl = {
 	.led_toggle = led_toggle_sitl,
 	.millis = millis_sitl,
 	.serial_getch = serial_getch_sitl,
+	.display_update_rect = update_rect_sitl,
 };
 
 void delay_sitl(uint32_t ms) {
 	SDL_Delay(ms);
 }
 
-#define ZOOM 3
 static uint32_t _time_ms = 0;
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
@@ -34,7 +35,11 @@ static uint32_t gettime(void) {
 	return t.tv_sec*100+t.tv_nsec/1000000;
 }
 
-static void draw_pixel(int x, int y) {
+static void draw_pixel(int x, int y, bool color) {
+	if (color)
+		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+	else
+		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_RenderFillRect(renderer, &(SDL_Rect){x*ZOOM, y*ZOOM, ZOOM, ZOOM});
 }
 
@@ -68,6 +73,7 @@ bool display_init_sitl(void) {
 	if (!renderer) {
 		return false;
 	}
+	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 	return true;
 }
 
@@ -76,6 +82,10 @@ void display_cmd_sitl(uint8_t *cmd, size_t size) {
 }
 
 void display_update_sitl(const vbuf_t *vbuf) {
+	update_rect_sitl(vbuf, &(bbox_t){0, 0, DISP_COLS, DISP_ROWS});
+}
+
+void update_rect_sitl(const vbuf_t *vbuf, bbox_t *bbox) {
 	SDL_Event evt;
 	SDL_PollEvent(&evt);
 	if (evt.type == SDL_QUIT) {
@@ -85,20 +95,33 @@ void display_update_sitl(const vbuf_t *vbuf) {
 		endwin();
 		exit(0);
 	}
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-	SDL_RenderClear(renderer);
 
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-	for (int i = 0; i < DISP_COLS; i++) {
-		for (int j = 0; j < DISP_ROWS; j++) {
-			uint8_t b = vbuf->buf[i][j];
+	int x, x_end;
+	int y, y_end;
+
+	x = bbox->x;
+	x_end = bbox->x + bbox->sizex;
+
+	y = bbox->y;
+	y_end = bbox->y + bbox->sizey;
+	printf("%d\t%d\t%d\t%d\r\n", x, y, x_end, y_end);
+
+	for (; x < x_end; x++) {
+		for (; y < MIN(y_end, DISP_ROWS); y++) {
 			for (int k = 0; k < 8; k++) {
-				if ((b >> k) & 0x01) {
-					draw_pixel(j*8+k, i);
-				}
+				uint8_t byte = (vbuf->buf[x][y] >> k) & 0x01;	
+				draw_pixel(k+8*y, x, byte);	
 			}
 		}
 	}
+
+#if SITL_OVERLAY
+	SDL_SetRenderDrawColor(renderer, 255, 0, 0, 50);
+	SDL_Rect rect = {bbox->y*ZOOM, 
+			bbox->x*ZOOM, bbox->sizey*ZOOM, 
+			bbox->sizex*ZOOM};
+	SDL_RenderFillRect(renderer, &rect);
+#endif
 
 	SDL_RenderPresent(renderer);
 }

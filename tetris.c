@@ -71,7 +71,7 @@ void grid_shift(grid_t grid, size_t start_idx) {
 
 bool grid_check(grid_t grid, size_t idx) {
 	int res = grid[idx] & 0x01;
-	for (int i = 0; i < GRID_COLS; i++) {
+	for (int i = 0; i < GRID_COLS-1; i++) {
 		res &= ((grid[idx] >> i) & 0x01);
 	}
 	return res;

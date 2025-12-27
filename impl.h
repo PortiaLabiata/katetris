@@ -10,10 +10,23 @@ typedef mutex_t mutex_impl_t;
 typedef SDL_mutex *mutex_impl_t;
 #endif
 
+typedef struct {
+	int x, y;
+	int sizex, sizey;
+} bbox_t;
+
+#define STACKSIZE 16
+typedef struct {
+	size_t size;
+	bbox_t arr[STACKSIZE];
+} bbox_stack_t;
+
 #define DISP_COLS 240
 #define DISP_ROWS 30
 typedef struct {
 	uint8_t buf[DISP_COLS][DISP_ROWS];
+	bbox_stack_t upd_stack;
+	bool clear_flag;
 	mutex_impl_t mtx;
 } vbuf_t;
 
@@ -25,6 +38,7 @@ typedef struct {
 
 	bool (*display_init)(void);
 	void (*display_update)(const vbuf_t*);
+	void (*display_update_rect)(const vbuf_t*, bbox_t *);
 	void (*display_cmd)(uint8_t*, size_t);
 
 	char (*serial_getch)(void);
@@ -36,6 +50,9 @@ typedef struct {
 #if SITL
 typedef uint32_t tprio_t;
 typedef int (*tfunc_t)(void *);
+#define ZOOM 3
+#else
+#define ZOOM 1
 #endif
 
 typedef struct {
