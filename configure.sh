@@ -30,3 +30,4 @@ for result in $res; do
 	cmd+="-D$result=$onoff "
 done
 eval $cmd > /dev/null
+cd .. && ./build.sh
