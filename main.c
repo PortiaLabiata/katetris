@@ -36,7 +36,7 @@ void update_block(vbuf_t *vbuf, block_t *blk) {
 	// and draw new one
 	bbox_t update_mask = {
 		.x = 0,
-		.y = (blk->y-1)*GRID_STEP,
+		.y = (blk->y-1),
 		.sizex = DISP_COLS,
 		.sizey = (BLOCK_HEIGHT+2)*GRID_STEP,
 	};

@@ -7,6 +7,7 @@
 #include <SDL2/SDL.h>
 #include <curses.h>
 #include "common.h"
+#include "tetris.h"
 
 hwiface_t hwiface_sitl = {
 	.delay = delay_sitl,
@@ -113,7 +114,7 @@ void update_rect_sitl(const vbuf_t *vbuf, bbox_t *bbox) {
 
 #if SITL_OVERLAY
 	SDL_SetRenderDrawColor(renderer, 255, 0, 0, 50);
-	SDL_Rect rect = {bbox->y*ZOOM, 
+	SDL_Rect rect = {bbox->y*ZOOM*GRID_STEP, 
 			bbox->x*ZOOM, bbox->sizey*ZOOM, 
 			bbox->sizex*ZOOM};
 	SDL_RenderFillRect(renderer, &rect);
