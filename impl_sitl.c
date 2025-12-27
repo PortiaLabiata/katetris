@@ -99,15 +99,11 @@ void update_rect_sitl(const vbuf_t *vbuf, bbox_t *bbox) {
 	int x, x_end;
 	int y, y_end;
 
-	x = bbox->x;
 	x_end = bbox->x + bbox->sizex;
-
-	y = bbox->y;
 	y_end = bbox->y + bbox->sizey;
-	printf("%d\t%d\t%d\t%d\r\n", x, y, x_end, y_end);
 
-	for (; x < x_end; x++) {
-		for (; y < MIN(y_end, DISP_ROWS); y++) {
+	for (x = bbox->x; x < x_end; x++) {
+		for (y = bbox->y; y < MIN(y_end, DISP_ROWS); y++) {
 			for (int k = 0; k < 8; k++) {
 				uint8_t byte = (vbuf->buf[x][y] >> k) & 0x01;	
 				draw_pixel(k+8*y, x, byte);	
