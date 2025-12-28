@@ -1,7 +1,6 @@
 #include "display.h"
 
 #if !SITL
-#include "chmtx.h"
 #include "chprintf.h"
 #endif
 

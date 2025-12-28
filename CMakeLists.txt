@@ -10,6 +10,7 @@ endif()
 
 option(BUILD_TEST "Build test firmware" OFF)
 option(SITL_OVERLAY "Build SITL with overlay features" OFF)
+option(SHIFT_CLEAR "Clear screen when shifting grid" ON)
 
 configure_file(env.h.in env.h)
 include_directories(${PROJECT_BINARY_DIR})

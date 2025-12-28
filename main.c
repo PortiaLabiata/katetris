@@ -35,13 +35,14 @@ void update_block(vbuf_t *vbuf, block_t *blk) {
 	// We need to clear previous position
 	// and draw new one
 	bbox_t update_mask = {
-		.x = 0,
+		.x = (blk->x-1),
 		.y = (blk->y-1),
-		.sizex = DISP_COLS,
+		.sizex = (BLOCK_HEIGHT+2)*GRID_STEP,
 		.sizey = (BLOCK_HEIGHT+2)*GRID_STEP,
 	};
 	// Make sure y is more than 0
 	update_mask.y = MAX(update_mask.y, 0);
+	update_mask.x = MAX(update_mask.x, 0);
 	bbox_stack_push(&vbuf->upd_stack, &update_mask);
 }
 
@@ -53,7 +54,7 @@ static THD_FUNCTION(thd_video, arg) {
 		draw(&vbuf);
 		thd->unlock(&vbuf.mtx);
 #endif
-		hw->delay(10);
+		hw->delay(1);
 	}
 }
 
@@ -151,7 +152,7 @@ collision:
 					grid_shift(grid, i);
 				}
 			}
-			vbuf_set_flag(&vbuf);
+			//vbuf_set_flag(&vbuf);
 		} // block_collides
 		block_draw(&vbuf, &blk);
 		grid_draw(&vbuf, grid);

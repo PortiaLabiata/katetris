@@ -103,7 +103,7 @@ void update_rect_sitl(const vbuf_t *vbuf, bbox_t *bbox) {
 	x_end = bbox->x + bbox->sizex;
 	y_end = bbox->y + bbox->sizey;
 
-	for (x = bbox->x; x < x_end; x++) {
+	for (x = bbox->x; x < MIN(x_end, DISP_COLS); x++) {
 		for (y = bbox->y; y < MIN(y_end, DISP_ROWS); y++) {
 			for (int k = 0; k < 8; k++) {
 				uint8_t byte = (vbuf->buf[x][y] >> k) & 0x01;	

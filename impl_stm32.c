@@ -1,5 +1,7 @@
 #include "env.h"
 #include "impl_stm32.h"
+#include "common.h"
+#include "tetris.h"
 
 hwiface_t hwiface_stm32 = {
 	.delay = delay_stm32,
@@ -10,7 +12,8 @@ hwiface_t hwiface_stm32 = {
 	.init = init_stm32,
 	.led_toggle = led_toggle_stm32,
 	.millis = millis_stm32,
-	.serial_getch = serial_getch_stm32
+	.serial_getch = serial_getch_stm32,
+	.display_update_rect = update_rect_stm32,
 };
 
 void delay_stm32(uint32_t ms) {
@@ -66,6 +69,26 @@ void display_clear(void) {
 	}
 }
 
+#define disp_normal_mode() disp_write_cmdb(0x13)
+#define disp_partial_mode() disp_write_cmdb(0x12)
+#define disp_raddr_set(start, end) do { \
+	disp_write_cmdb(0x2B); \
+	uint8_t _buf[] = { \
+		start >> 8, start & 0xFF, \
+		end >> 8, end & 0xFF, \
+	}; \
+	disp_write_data(_buf, 4); \
+} while (0)
+
+#define disp_caddr_set(start, end) do { \
+	disp_write_cmdb(0x2A); \
+	uint8_t _buf[] = { \
+		start >> 8, start & 0xFF, \
+		end >> 8, end & 0xFF, \
+	}; \
+	disp_write_data(_buf, 4); \
+} while (0)
+
 bool display_init_stm32(void) {
 	// Hard reset
 	disp_clear_rst();
@@ -95,19 +118,32 @@ bool display_init_stm32(void) {
 	hw->delay(10);
 	// MADCTL
 	disp_write_cmdb(0x36);
-	disp_write_datab(1 << 5);
+	disp_write_datab(0);
 	hw->delay(10);
-
-	disp_write_cmdb(0x2C);
-	display_clear();
 	return true;
 }
 
 void display_update_stm32(const vbuf_t *vbuf) {
-	for (int i = 0; i < DISP_COLS; i++) {
-		for (int j = 0; j < DISP_ROWS; j++) {
+	update_rect_stm32(vbuf, &(bbox_t){0, 0, DISP_COLS, DISP_ROWS*8});
+}
+
+void update_rect_stm32(const vbuf_t *vbuf, bbox_t *bbox) {
+	int x, x_end;
+	int y, y_end;
+
+	x_end = MIN(bbox->x*GRID_STEP + bbox->sizex, DISP_COLS);
+	y_end = MIN(bbox->y*GRID_STEP + bbox->sizey, DISP_ROWS*8);
+
+	disp_caddr_set(bbox->x*GRID_STEP, x_end);
+	disp_raddr_set(bbox->y*GRID_STEP, y_end);
+
+	// RAMWR
+	disp_write_cmdb(0x2C);
+
+	for (x = bbox->x; x < x_end; x++) {
+		for (y = bbox->y; y < MIN(y_end, DISP_ROWS); y++) {
 			for (int k = 0; k < 8; k++) {
-				uint8_t bit = (vbuf->buf[i][j] >> k) & 0x01;
+				uint8_t bit = (vbuf->buf[x][y] >> k) & 0x01;
 
 				uint8_t _buf[2]; 
 				if (bit) {
@@ -119,6 +155,7 @@ void display_update_stm32(const vbuf_t *vbuf) {
 			}
 		}
 	}
+	disp_write_cmdb(0x00);
 }
 
 void fatal_error_stm32(const char *msg) {
@@ -167,7 +204,7 @@ uint32_t millis_stm32(void) {
 }
 
 char serial_getch_stm32(void) {
-	return sdGetTimeout(&SD1, TIME_MS2I(1));
+	return sdGetTimeout(&SD1, TIME_US2I(1));
 }
 
 thdiface_t thdiface_stm32 = {

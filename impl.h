@@ -81,6 +81,7 @@ static thdiface_t *thd = &thdiface_sitl;
 #define THD_WORKING_AREA(name, size) port_stkalign_t name[size]
 #define THD_FUNCTION(name, arg) int name(void *arg)
 #define NORMALPRIO 0
+#define LOWPRIO 0
 
 #else
 
