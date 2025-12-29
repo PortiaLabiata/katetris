@@ -20,7 +20,6 @@ void delay_stm32(uint32_t ms) {
 	osalThreadSleepMilliseconds(ms);
 }
 
-#define DISP_ADDR 60
 #define CMD_ON 0xAF
 #define CMD_OFF 0xAE
 #define CMD_CP_ON 0x8D
@@ -145,18 +144,14 @@ void update_rect_stm32(const vbuf_t *vbuf, bbox_t *bbox) {
 	// RAMWR
 	disp_write_cmdb(0x2C);
 
-	for (x = bbox->x; x < x_end; x++) {
-		for (y = y_start_bytes; y < y_end_bytes; y++) {
-			for (int k = 0; k < 8; k++) {
-				uint8_t bit = (vbuf->buf[x][y] >> k) & 0x01;
-
-				uint8_t _buf[2]; 
-				if (bit) {
-					_buf[0] = _buf[1] = 0xFF;
-				} else {
-					_buf[0] = _buf[1] = 0x00;
+	for (y = y_start_bytes; y < y_end_bytes; y++) {
+		for (int rem = 0; rem < 8; rem++) {
+			for (x = bbox->x; x < x_end; x++) {
+				uint16_t buf = 0x0000;
+				if ((vbuf->buf[x][y] >> rem) & 0x01) {
+					buf = 0xFFFF;	
 				}
-				disp_write_data(_buf, 2);
+				disp_write_data((uint8_t*)&buf, 2);
 			}
 		}
 	}

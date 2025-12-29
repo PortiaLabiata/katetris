@@ -83,7 +83,7 @@ void display_cmd_sitl(uint8_t *cmd, size_t size) {
 }
 
 void display_update_sitl(const vbuf_t *vbuf) {
-	update_rect_sitl(vbuf, &(bbox_t){0, 0, DISP_COLS, DISP_ROWS});
+	update_rect_sitl(vbuf, &(bbox_t){0, 0, DISP_COLS, DISP_ROWS*8});
 }
 
 void update_rect_sitl(const vbuf_t *vbuf, bbox_t *bbox) {
@@ -100,11 +100,11 @@ void update_rect_sitl(const vbuf_t *vbuf, bbox_t *bbox) {
 	int x, x_end;
 	int y, y_end;
 
-	x_end = bbox->x + bbox->sizex;
-	y_end = bbox->y + bbox->sizey;
+	x_end = MIN(bbox->x + bbox->sizex, DISP_COLS);
+	y_end = MIN(bbox->y + bbox->sizey, DISP_ROWS*8)/8;
 
-	for (x = bbox->x; x < MIN(x_end, DISP_COLS); x++) {
-		for (y = bbox->y; y < MIN(y_end, DISP_ROWS); y++) {
+	for (x = bbox->x; x < x_end; x++) {
+		for (y = bbox->y/8; y < y_end; y++) {
 			for (int k = 0; k < 8; k++) {
 				uint8_t byte = (vbuf->buf[x][y] >> k) & 0x01;	
 				draw_pixel(k+8*y, x, byte);	
@@ -113,11 +113,13 @@ void update_rect_sitl(const vbuf_t *vbuf, bbox_t *bbox) {
 	}
 
 #if SITL_OVERLAY
-	SDL_SetRenderDrawColor(renderer, 255, 0, 0, 50);
-	SDL_Rect rect = {bbox->y*ZOOM*GRID_STEP, 
-			bbox->x*ZOOM, bbox->sizey*ZOOM, 
-			bbox->sizex*ZOOM};
-	SDL_RenderFillRect(renderer, &rect);
+	if (!(bbox->sizex == DISP_COLS && bbox->sizey == DISP_ROWS*8)) {
+		SDL_SetRenderDrawColor(renderer, 255, 0, 0, 50);
+		SDL_Rect rect = {bbox->y*ZOOM, 
+				bbox->x*ZOOM, bbox->sizey*ZOOM, 
+				bbox->sizex*ZOOM};
+		SDL_RenderFillRect(renderer, &rect);
+	}
 #endif
 
 	SDL_RenderPresent(renderer);

@@ -81,28 +81,63 @@ int main(void) {
 
 	(void)chThdCreateStatic(wa_blink, sizeof(wa_blink), NORMALPRIO,
 					thd_blink, NULL);
-	while (1) {
-		msg_t status = MSG_OK;
-		disp_hreset();	
-		// Soft reset
-		status |= send_cmd(0x01);
-		delay(110);
-		// Sleep out
-		status |= send_cmd(0x11);
-		delay(110);
-		// Disp on
-		status |= send_cmd(0x29);
-		delay(10);
-		// Disp colmode
-		status |= send_cmd(0x3A);
-		status |= send_datab(0b01010101);
-		delay(10);
+	msg_t status = MSG_OK;
+	disp_hreset();	
+	// Soft reset
+	status |= send_cmd(0x01);
+	delay(110);
+	// Sleep out
+	status |= send_cmd(0x11);
+	delay(110);
+	// Disp on
+	status |= send_cmd(0x29);
+	delay(10);
+	// Disp colmode
+	status |= send_cmd(0x3A);
+	status |= send_datab(0b01010101);
+	delay(10);
 
-		send_cmd(0x2C);
-		for (int i = 0; i < 1000; i++) {
-			status |= send_data(0x0000);
-		}
-		osalDbgAssert(status == MSG_OK, "Runtime");
-		delay(100);
+	disp_clear_rst();
+	chThdSleepMilliseconds(100);
+	disp_set_rst();
+	chThdSleepMilliseconds(150);
+
+	// Soft reset
+	send_cmd(0x01);
+	chThdSleepMilliseconds(500);
+	// Sleep out
+	send_cmd(0x11);
+	chThdSleepMilliseconds(500);
+	// Inv on
+	send_cmd(0x21);
+	chThdSleepMilliseconds(10);
+	// Disp on
+	send_cmd(0x29);
+	chThdSleepMilliseconds(10);
+	// Disp colmode - 65k, 16bit/px
+	send_cmd(0x3A);
+	send_datab(0b01010101);
+	chThdSleepMilliseconds(10);
+	// Brightness
+	send_cmd(0x51);
+	send_datab(0xFF);
+	chThdSleepMilliseconds(10);
+	// MADCTL
+	send_cmd(0x36);
+	send_datab(1 << 5);
+
+	send_cmd(0x2C);
+
+	for (int i = 0; i < 240*240; i++) {
+		send_data(0x0000);
 	}
+	for (int i = 0; i < 120; i++) {
+		for (int j = 0; j < 120; j++) {
+			send_data(0x000F);
+		}
+		for (int j = 0; j < 120; j++) {
+			send_data(0xFFFF);
+		}
+	}
+	osalDbgAssert(status == MSG_OK, "Runtime");
 }
