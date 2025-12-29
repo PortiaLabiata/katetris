@@ -35,8 +35,8 @@ void update_block(vbuf_t *vbuf, block_t *blk) {
 	// We need to clear previous position
 	// and draw new one
 	bbox_t update_mask = {
-		.x = (blk->x-1),
-		.y = (blk->y-1),
+		.x = (blk->x-1)*GRID_STEP,
+		.y = (blk->y-1)*GRID_STEP,
 		.sizex = (BLOCK_HEIGHT+2)*GRID_STEP,
 		.sizey = (BLOCK_HEIGHT+2)*GRID_STEP,
 	};
@@ -66,7 +66,7 @@ thd_handle_t threads[] = {
 
 	{.wa = wa_video,
 	 .wa_size = sizeof(wa_video),
-	 .prio = NORMALPRIO,
+	 .prio = LOWPRIO,
 	 .func = thd_video},
 };
 
@@ -152,7 +152,9 @@ collision:
 					grid_shift(grid, i);
 				}
 			}
-			//vbuf_set_flag(&vbuf);
+#if SHIFT_CLEAR
+			vbuf_set_flag(&vbuf);
+#endif
 		} // block_collides
 		block_draw(&vbuf, &blk);
 		grid_draw(&vbuf, grid);

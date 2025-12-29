@@ -74,8 +74,8 @@ void display_clear(void) {
 #define disp_raddr_set(start, end) do { \
 	disp_write_cmdb(0x2B); \
 	uint8_t _buf[] = { \
-		start >> 8, start & 0xFF, \
-		end >> 8, end & 0xFF, \
+		(start) >> 8, (start) & 0xFF, \
+		(end) >> 8, (end) & 0xFF, \
 	}; \
 	disp_write_data(_buf, 4); \
 } while (0)
@@ -83,8 +83,8 @@ void display_clear(void) {
 #define disp_caddr_set(start, end) do { \
 	disp_write_cmdb(0x2A); \
 	uint8_t _buf[] = { \
-		start >> 8, start & 0xFF, \
-		end >> 8, end & 0xFF, \
+		(start) >> 8, (start) & 0xFF, \
+		(end) >> 8, (end) & 0xFF, \
 	}; \
 	disp_write_data(_buf, 4); \
 } while (0)
@@ -118,30 +118,35 @@ bool display_init_stm32(void) {
 	hw->delay(10);
 	// MADCTL
 	disp_write_cmdb(0x36);
-	disp_write_datab(0);
+	disp_write_datab(1 << 5);
 	hw->delay(10);
 	return true;
 }
 
 void display_update_stm32(const vbuf_t *vbuf) {
-	update_rect_stm32(vbuf, &(bbox_t){0, 0, DISP_COLS, DISP_ROWS*8});
+	update_rect_stm32(vbuf, &(bbox_t){0, 0, DISP_COLS, 
+					DISP_ROWS*8});
 }
 
+// TODO: buffer rows for more efficient transfer
 void update_rect_stm32(const vbuf_t *vbuf, bbox_t *bbox) {
 	int x, x_end;
-	int y, y_end;
+	int y, y_end, y_start_bytes, y_end_bytes;
 
-	x_end = MIN(bbox->x*GRID_STEP + bbox->sizex, DISP_COLS);
-	y_end = MIN(bbox->y*GRID_STEP + bbox->sizey, DISP_ROWS*8);
+	x_end = MIN(bbox->x + bbox->sizex, DISP_COLS);
+	y_end = MIN(bbox->y + bbox->sizey, DISP_ROWS*8);
 
-	disp_caddr_set(bbox->x*GRID_STEP, x_end);
-	disp_raddr_set(bbox->y*GRID_STEP, y_end);
+	y_start_bytes = bbox->y / 8;
+	y_end_bytes = y_end / 8;
+
+	disp_caddr_set(bbox->x, x_end-1);
+	disp_raddr_set(bbox->y, y_end-1);
 
 	// RAMWR
 	disp_write_cmdb(0x2C);
 
 	for (x = bbox->x; x < x_end; x++) {
-		for (y = bbox->y; y < MIN(y_end, DISP_ROWS); y++) {
+		for (y = y_start_bytes; y < y_end_bytes; y++) {
 			for (int k = 0; k < 8; k++) {
 				uint8_t bit = (vbuf->buf[x][y] >> k) & 0x01;
 
