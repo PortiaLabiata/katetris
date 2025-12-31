@@ -3,6 +3,13 @@
 #include "common.h"
 #include "impl.h"
 
+#include "text.h"
+#include "font.h"
+
+#if SITL
+#include <SDL2/SDL.h>
+#endif
+
 static THD_WORKING_AREA(wa_blink, 64);
 static THD_FUNCTION(thd_blink, arg) {
 	while (1) {
@@ -14,15 +21,33 @@ static THD_FUNCTION(thd_blink, arg) {
 static vbuf_t vbuf;
 static grid_t grid;
 
+void draw(vbuf_t *vbuf) {
+	if (vbuf->clear_flag) {
+		hw->display_update(vbuf);
+		vbuf->clear_flag = false;
+		return;
+	}
+	while (vbuf->upd_stack.size) {
+		bbox_t bbox = {0};
+		bbox_stack_pop(&vbuf->upd_stack, &bbox);
+		hw->display_update_rect(vbuf, &bbox);
+	}
+}
+
+#define SCORE_X 0
+#define SCORE_Y 0
+#define SCORE_SIZEX GRID_STEP*CHAR_SIZE
+#define SCORE_SIZEY GRID_STEP*CHAR_SIZE*3
+
 static THD_WORKING_AREA(wa_video, 128);
 static THD_FUNCTION(thd_video, arg) {
 	while (1) {
 #if !SITL
 		thd->lock(&vbuf.mtx);
-		hw->display_update(&vbuf);	
+		draw(&vbuf);
 		thd->unlock(&vbuf.mtx);
 #endif
-		hw->delay(10);
+		hw->delay(1);
 	}
 }
 
@@ -34,10 +59,43 @@ thd_handle_t threads[] = {
 
 	{.wa = wa_video,
 	 .wa_size = sizeof(wa_video),
-	 .prio = NORMALPRIO,
+	 .prio = LOWPRIO,
 	 .func = thd_video},
 };
 
+void block_move(char c, bbox_t bbox, block_t *blk) {
+	switch (c) {
+		case 'a':
+			if (blk->y+bbox.y > 0) {
+				blk->y -= 1;
+				update_block(&vbuf, blk);
+			}
+			break;
+		case 'd':
+			if (blk->y+bbox.y < GRID_COLS-bbox.sizey) {
+				blk->y += 1;
+				update_block(&vbuf, blk);
+			}
+			break;
+		case 's':
+			if (blk->x+bbox.x < GRID_ROWS-bbox.sizex) {
+				blk->x += 1;
+				update_block(&vbuf, blk);
+			}
+			break;
+		case 'e':
+			block_rotr(blk);
+			update_block(&vbuf, blk);
+
+			bbox = get_bbox(blk->ptrs[blk->ori]);
+			break;
+		default:
+			break;
+	}
+}
+
+// TODO: fix rendering of gamma block in one of 
+// orientation
 int main(int argc, char *argv[]) {
 	if (!hw->init()) {
 		hw->fatal_error("system");
@@ -58,56 +116,53 @@ int main(int argc, char *argv[]) {
 	t_last = hw->millis();
 
 	block_t blk = block_gamma;
+	bbox_t bbox = get_bbox(blk.ptrs[blk.ori]);
 	int score = 0;
+
+	// We need to draw entire screen at least once
+	vbuf_set_flag(&vbuf);
 	while (1) {
-		char c = hw->serial_getch();
-		switch (c) {
-			case 'a':
-				blk.y -= 1;
-				break;
-			case 'd':
-				blk.y += 1;
-				break;
-			case 's':
-				blk.x += 1;
-				break;
-			case 'q':
-				block_rotr(&blk);
-				break;
-			case 'e':
-				block_rotl(&blk);
-				break;
-			default:
-				break;
+		hw->loop(&vbuf, &blk);
+
+		if (blk.x+bbox.x == GRID_ROWS-bbox.sizex) {
+			goto collision;
 		}
-		// FIXME: duct tape!!!
-		blk.y = bound(blk.y, -1, 
-						GRID_COLS-BLOCK_HEIGHT+1);
+
 		vbuf_clear(&vbuf);
 
 		uint32_t t_now = hw->millis();
 		if (t_now - t_last >= 1000) {
 			t_last = t_now;
-			blk.x += 1;
+			blk.x++;
+			update_block(&vbuf, &blk);
+			bbox_stack_push(&vbuf.upd_stack, 
+				&(bbox_t){SCORE_X, SCORE_Y, SCORE_SIZEX, SCORE_SIZEY});
 		}
-		if (blk.x >= GRID_ROWS-BLOCK_HEIGHT || \
-				block_collides(&blk, grid)) {
+		if (block_collides(&blk, grid)) {
+collision:
 			block_add(&blk, grid);
 			blk = block_gamma;
-			for (int i = GRID_ROWS-1; grid[i] && i >= 0; i--) {
+			bbox = get_bbox(blk.ptrs[blk.ori]);
+
+			for (int i = GRID_ROWS-1; i >= 0; i--) {
 				if (grid_check(grid, i)) {
 					score++;
 					grid_shift(grid, i);
 				}
 			}
-		}
+#if SHIFT_CLEAR
+			vbuf_set_flag(&vbuf);
+#endif
+		} // block_collides
 		block_draw(&vbuf, &blk);
 		grid_draw(&vbuf, grid);
+
+		text_draw_number(&vbuf, score, SCORE_X, SCORE_Y);
 #if SITL
-		hw->display_update(&vbuf);
+		draw(&vbuf);
 #endif
-		hw->delay(10);
-	}
+		hw->delay(100);
+	} // while (1)
 }
 
 void HardFault_Handler(void) {

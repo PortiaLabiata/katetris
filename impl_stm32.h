@@ -8,9 +8,11 @@
 void display_cmd_stm32(uint8_t *cmd, size_t size);
 bool display_init_stm32(void);
 void display_update_stm32(const vbuf_t *vbuf);
+void update_rect_stm32(const vbuf_t *vbuf, bbox_t *bbox);
 
 void fatal_error_stm32(const char *msg);
 bool init_stm32(void);
+void loop_stm32(vbuf_t *vbuf, block_t *blk);
 
 void led_toggle_stm32(void);
 

@@ -1,6 +1,8 @@
 #include "env.h"
 #include "tetris.h"
 #include "common.h"
+#include "display.h"
+#include <limits.h>
 
 #if SITL
 #include <SDL2/SDL.h>
@@ -14,7 +16,7 @@ void block_rotl(block_t *blk) {
 	blk->ori = (blk->ori - 1) % 4;
 }
 
-static void suppx_draw(vbuf_t *vbuf, int x, int y) {
+void suppx_draw(vbuf_t *vbuf, int x, int y) {
 	vbuf_draw_rect(vbuf, x*GRID_STEP, y*GRID_STEP, GRID_STEP, GRID_STEP);
 }
 
@@ -70,8 +72,46 @@ void grid_shift(grid_t grid, size_t start_idx) {
 
 bool grid_check(grid_t grid, size_t idx) {
 	int res = grid[idx] & 0x01;
-	for (int i = 0; i < GRID_COLS; i++) {
+	for (int i = 0; i < GRID_COLS-1; i++) {
 		res &= ((grid[idx] >> i) & 0x01);
 	}
 	return res;
 }
+
+bbox_t get_bbox(const pattern_t ptr) {
+	bbox_t res = {0};
+	res.x = res.y = INT_MAX;
+	res.sizex = res.sizey = INT_MIN;
+
+	for (int i = 0; i < BLOCK_HEIGHT; i++) {
+		for (int j = 0; j < BLOCK_HEIGHT; j++) {
+			if ((ptr[i] >> j) & 0x01) {
+				res.x = MIN(res.x, i);		
+				res.y = MIN(res.y, j);
+
+				res.sizex = MAX(res.sizex, i);
+				res.sizey = MAX(res.sizey, j);
+			}
+		}
+	}
+	res.sizex -= res.x-1;
+	res.sizey -= res.y-1;
+	return res;
+}
+
+void update_block(vbuf_t *vbuf, block_t *blk) {
+	// We need to clear previous position
+	// and draw new one
+	bbox_t update_mask = {
+		.x = (blk->x-1)*GRID_STEP,
+		.y = (blk->y-1)*GRID_STEP,
+		.sizex = (BLOCK_HEIGHT+2)*GRID_STEP,
+		.sizey = (BLOCK_HEIGHT+2)*GRID_STEP,
+	};
+	// Make sure y is more than 0
+	update_mask.y = MAX(update_mask.y, 0);
+	update_mask.x = MAX(update_mask.x, 0);
+	bbox_stack_push(&vbuf->upd_stack, &update_mask);
+}
+
+

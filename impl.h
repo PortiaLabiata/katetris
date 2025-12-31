@@ -1,30 +1,18 @@
 #pragma once
 #include "env.h"
 #include "chibios/os/common/ports/ARM-common/chtypes.h"
-
-#if !SITL
-#include "ch.h"
-typedef mutex_t mutex_impl_t;
-#else
-#include <SDL2/SDL.h>
-typedef SDL_mutex *mutex_impl_t;
-#endif
-
-#define DISP_COLS 128
-#define DISP_ROWS 8
-typedef struct {
-	uint8_t buf[DISP_COLS][DISP_ROWS];
-	mutex_impl_t mtx;
-} vbuf_t;
+#include "types.h"
 
 typedef struct {
 	bool (*init)(void);
+	void (*loop)(vbuf_t *vbuf, block_t *blk);
 
 	uint32_t (*millis)(void);
 	void (*delay)(uint32_t);
 
 	bool (*display_init)(void);
 	void (*display_update)(const vbuf_t*);
+	void (*display_update_rect)(const vbuf_t*, bbox_t *);
 	void (*display_cmd)(uint8_t*, size_t);
 
 	char (*serial_getch)(void);
@@ -35,7 +23,10 @@ typedef struct {
 
 #if SITL
 typedef uint32_t tprio_t;
-typedef int tfunc_t(void *);
+typedef int (*tfunc_t)(void *);
+#define ZOOM 3
+#else
+#define ZOOM 1
 #endif
 
 typedef struct {
@@ -64,6 +55,7 @@ static thdiface_t *thd = &thdiface_sitl;
 #define THD_WORKING_AREA(name, size) port_stkalign_t name[size]
 #define THD_FUNCTION(name, arg) int name(void *arg)
 #define NORMALPRIO 0
+#define LOWPRIO 0
 
 #else
 

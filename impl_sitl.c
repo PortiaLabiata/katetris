@@ -6,6 +6,9 @@
 
 #include <SDL2/SDL.h>
 #include <curses.h>
+#include "common.h"
+#include "tetris.h"
+#include "buttons.h"
 
 hwiface_t hwiface_sitl = {
 	.delay = delay_sitl,
@@ -17,13 +20,14 @@ hwiface_t hwiface_sitl = {
 	.led_toggle = led_toggle_sitl,
 	.millis = millis_sitl,
 	.serial_getch = serial_getch_sitl,
+	.display_update_rect = update_rect_sitl,
+	.loop = loop_sitl,
 };
 
 void delay_sitl(uint32_t ms) {
 	SDL_Delay(ms);
 }
 
-#define ZOOM 3
 static uint32_t _time_ms = 0;
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
@@ -34,7 +38,11 @@ static uint32_t gettime(void) {
 	return t.tv_sec*100+t.tv_nsec/1000000;
 }
 
-static void draw_pixel(int x, int y) {
+static void draw_pixel(int x, int y, bool color) {
+	if (color)
+		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+	else
+		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_RenderFillRect(renderer, &(SDL_Rect){x*ZOOM, y*ZOOM, ZOOM, ZOOM});
 }
 
@@ -50,6 +58,18 @@ bool init_sitl(void) {
 	nodelay(stdscr, TRUE);
 	return true;
 }
+
+static bool button_states[BUTTON_COUNT] = {0};
+struct char_map_t {
+	SDL_KeyCode c;
+	button_e idx;
+} char_map[] = {
+	{'d', BUTTON_RIGHT},
+	{'a', BUTTON_LEFT},
+	{'w', BUTTON_UP},
+	{'s', BUTTON_DOWN},
+	{'e', BUTTON_ENTER},
+};
 
 bool display_init_sitl(void) {
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
@@ -68,6 +88,7 @@ bool display_init_sitl(void) {
 	if (!renderer) {
 		return false;
 	}
+	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 	return true;
 }
 
@@ -76,6 +97,19 @@ void display_cmd_sitl(uint8_t *cmd, size_t size) {
 }
 
 void display_update_sitl(const vbuf_t *vbuf) {
+	update_rect_sitl(vbuf, &(bbox_t){0, 0, DISP_COLS, DISP_ROWS*8});
+}
+
+static button_e _map_button(SDL_KeyCode code) {
+	for (int i = 0; i < BUTTON_COUNT; i++) {
+		if (code == char_map[i].c) {
+			return char_map[i].idx;
+		}
+	}
+	return BUTTON_INVALID;
+}
+
+void loop_sitl(vbuf_t *vbuf, block_t *blk) {
 	SDL_Event evt;
 	SDL_PollEvent(&evt);
 	if (evt.type == SDL_QUIT) {
@@ -84,21 +118,45 @@ void display_update_sitl(const vbuf_t *vbuf) {
 		SDL_Quit();
 		endwin();
 		exit(0);
-	}
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-	SDL_RenderClear(renderer);
+	} else if (evt.type == SDL_KEYDOWN || evt.type == SDL_KEYUP) {
+		button_e button = _map_button(evt.key.keysym.sym);	
+		if (button != BUTTON_INVALID) {
+			if (evt.type == SDL_KEYDOWN)
+				button_states[button] = true;
+			else
+				button_states[button] = false;
+		}
+		if (buttons_do_action(blk, button_states)) {
+			update_block(vbuf, blk);
+		}
+	}	
+}
 
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-	for (int i = 0; i < DISP_COLS; i++) {
-		for (int j = 0; j < DISP_ROWS; j++) {
-			uint8_t b = vbuf->buf[i][j];
+void update_rect_sitl(const vbuf_t *vbuf, bbox_t *bbox) {
+	int x, x_end;
+	int y, y_end;
+
+	x_end = MIN(bbox->x + bbox->sizex, DISP_COLS);
+	y_end = MIN(bbox->y + bbox->sizey, DISP_ROWS*8)/8;
+
+	for (x = bbox->x; x < x_end; x++) {
+		for (y = bbox->y/8; y < y_end; y++) {
 			for (int k = 0; k < 8; k++) {
-				if ((b >> k) & 0x01) {
-					draw_pixel(j*8+k, i);
-				}
+				uint8_t byte = (vbuf->buf[x][y] >> k) & 0x01;	
+				draw_pixel(k+8*y, x, byte);	
 			}
 		}
 	}
+
+#if SITL_OVERLAY
+	if (!(bbox->sizex == DISP_COLS && bbox->sizey == DISP_ROWS*8)) {
+		SDL_SetRenderDrawColor(renderer, 255, 0, 0, 50);
+		SDL_Rect rect = {bbox->y*ZOOM, 
+				bbox->x*ZOOM, bbox->sizey*ZOOM, 
+				bbox->sizex*ZOOM};
+		SDL_RenderFillRect(renderer, &rect);
+	}
+#endif
 
 	SDL_RenderPresent(renderer);
 }

@@ -2,26 +2,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "display.h"
-
-#define GRID_STEP 8
-enum ori_e {
-	ORI_NORTH = 0,
-	ORI_EAST,
-	ORI_SOUTH,
-	ORI_WEST,
-	ORI_SIZE,
-};
-
-#define BLOCK_HEIGHT 3
-typedef uint8_t pattern_row_t;
-typedef pattern_row_t pattern_t[BLOCK_HEIGHT];
-typedef struct {
-	const pattern_t *ptrs; // North, east, south and west
-	enum ori_e ori;
-	int x, y;
-	bool fell;
-} block_t;
+#include "impl.h"
+#include "types.h"
 
 static const pattern_t patterns_gamma[ORI_SIZE] = {
 		{0b110, 
@@ -36,9 +18,9 @@ static const pattern_t patterns_gamma[ORI_SIZE] = {
 		 0b001, 
 		 0b011},
 
-		{0b000, 
-		 0b100, 
-		 0b111},
+		{0b100, 
+		 0b111, 
+		 0b000},
 };
 static const block_t block_gamma = {
 	.ptrs = patterns_gamma,
@@ -72,8 +54,11 @@ void block_rotl(block_t *blk);
 void block_draw(vbuf_t *vbuf, block_t *blk);
 bool block_collides(block_t *blk, grid_t grid);
 void block_add(block_t *blk, grid_t grid);
+void update_block(vbuf_t *vbuf, block_t *blk);
+void suppx_draw(vbuf_t *vbuf, int x, int y);
 
 void grid_clear(grid_t grid);
 void grid_draw(vbuf_t *vbuf, grid_t grid);
 void grid_shift(grid_t grid, size_t start_idx);
 bool grid_check(grid_t grid, size_t idx);
+bbox_t get_bbox(const pattern_t ptr);

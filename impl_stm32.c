@@ -1,5 +1,8 @@
 #include "env.h"
 #include "impl_stm32.h"
+#include "common.h"
+#include "tetris.h"
+#include "buttons.h"
 
 hwiface_t hwiface_stm32 = {
 	.delay = delay_stm32,
@@ -8,27 +11,41 @@ hwiface_t hwiface_stm32 = {
 	.display_update = display_update_stm32,
 	.fatal_error = fatal_error_stm32,
 	.init = init_stm32,
+	.loop = loop_stm32,
 	.led_toggle = led_toggle_stm32,
 	.millis = millis_stm32,
-	.serial_getch = serial_getch_stm32
+	.serial_getch = serial_getch_stm32,
+	.display_update_rect = update_rect_stm32,
 };
 
 void delay_stm32(uint32_t ms) {
 	osalThreadSleepMilliseconds(ms);
 }
 
-#define DISP_ADDR 60
 #define CMD_ON 0xAF
 #define CMD_OFF 0xAE
 #define CMD_CP_ON 0x8D
 #define CMD_ALL_ON 0xA5
 
-void display_cmd_stm32(uint8_t *cmd, size_t size) {
-	uint8_t buf[size+1];
-	buf[0] = 0x00;
-	memcpy(buf+1, cmd, size);
+#define NSS_PORT GPIOA
+#define NSS_PIN 4
+#define DC_PORT GPIOA
+#define DC_PIN 3
+#define RST_PORT GPIOA
+#define RST_PIN 2
+#define BLK_PORT GPIOA
+#define BLK_PIN 1
 
-	i2cMasterTransmit(&I2CD1, DISP_ADDR, buf, size+1, NULL, 0);
+#define disp_set_cd() palSetPad(DC_PORT, DC_PIN) // data
+#define disp_clear_cd() palClearPad(DC_PORT, DC_PIN) // command
+#define disp_set_blk() palSetPad(BLK_PORT, BLK_PIN)
+#define disp_clear_blk() palClearPad(BLK_PORT, BLK_PIN)
+#define disp_set_rst() palSetPad(RST_PORT, RST_PIN)
+#define disp_clear_rst() palClearPad(RST_PORT, RST_PIN)
+
+void display_cmd_stm32(uint8_t *cmd, size_t size) {
+	disp_clear_cd();	
+	spiSend(&SPID1, size, cmd);
 }
 
 #define disp_write_cmdb(b) do { \
@@ -36,28 +53,10 @@ void display_cmd_stm32(uint8_t *cmd, size_t size) {
 	display_cmd_stm32(&_buf, 1); \
 } while (0)
 
-bool display_init_stm32(void) {
-	uint8_t _b[4];
-
-	disp_write_cmdb(CMD_OFF); // Sleep mode
-	disp_write_cmdb(CMD_CP_ON); // Enable charge pump
-	disp_write_cmdb(CMD_ALL_ON); // All pixels on
-
-	// Set addressing mode to vertical
-	_b[0] = 0x20;
-	_b[1] = 0x01;
-	display_cmd_stm32(_b, 2);
-
-	disp_write_cmdb(CMD_ON);
-	return true;
-}
-
 static int disp_write_data(uint8_t *bs, int size) {
-	uint8_t buf[size+1];
-	buf[0] = 1 << 6;
-	memcpy(buf+1, bs, size);
-
-	return i2cMasterTransmit(&I2CD1, DISP_ADDR, buf, size+1, NULL, 0);
+	disp_set_cd();
+	spiSend(&SPID1, size, bs);
+	return 0;
 }
 
 #define disp_write_datab(b) do { \
@@ -65,12 +64,124 @@ static int disp_write_data(uint8_t *bs, int size) {
 	disp_write_data(&_buf, 1); \
 } while (0)
 
+void display_clear(void) {
+	for (int i = 0; i < DISP_COLS*DISP_ROWS; i++) {
+		disp_write_datab(0x0000);
+	}
+}
+
+#define disp_normal_mode() disp_write_cmdb(0x13)
+#define disp_partial_mode() disp_write_cmdb(0x12)
+#define disp_raddr_set(start, end) do { \
+	disp_write_cmdb(0x2B); \
+	uint8_t _buf[] = { \
+		(start) >> 8, (start) & 0xFF, \
+		(end) >> 8, (end) & 0xFF, \
+	}; \
+	disp_write_data(_buf, 4); \
+} while (0)
+
+#define disp_caddr_set(start, end) do { \
+	disp_write_cmdb(0x2A); \
+	uint8_t _buf[] = { \
+		(start) >> 8, (start) & 0xFF, \
+		(end) >> 8, (end) & 0xFF, \
+	}; \
+	disp_write_data(_buf, 4); \
+} while (0)
+
+bool display_init_stm32(void) {
+	// Hard reset
+	disp_clear_rst();
+	hw->delay(100);
+	disp_set_rst();
+	hw->delay(150);
+
+	// Soft reset
+	disp_write_cmdb(0x01);
+	hw->delay(500);
+	// Sleep out
+	disp_write_cmdb(0x11);
+	hw->delay(500);
+	// Inv on
+	disp_write_cmdb(0x21);
+	hw->delay(10);
+	// Disp on
+	disp_write_cmdb(0x29);
+	hw->delay(10);
+	// Disp colmode - 65k, 16bit/px
+	disp_write_cmdb(0x3A);
+	disp_write_datab(0b01010101);
+	hw->delay(10);
+	// Brightness
+	disp_write_cmdb(0x51);
+	disp_write_datab(0xFF);
+	hw->delay(10);
+	// MADCTL
+	disp_write_cmdb(0x36);
+	disp_write_datab(1 << 5);
+	hw->delay(10);
+	return true;
+}
+
 void display_update_stm32(const vbuf_t *vbuf) {
-	for (int i = 0; i < DISP_COLS; i++) {
-		for (int j = 0; j < DISP_ROWS; j++) {
-			disp_write_datab(vbuf->buf[i][j]);	
+	update_rect_stm32(vbuf, &(bbox_t){0, 0, DISP_COLS, 
+					DISP_ROWS*8});
+}
+
+#define BUFSIZE 64
+typedef struct {
+	uint16_t buf[BUFSIZE];
+	size_t size;
+} temp_buf_t;
+
+void buf_push(temp_buf_t *buf, uint16_t v) {
+	if (buf->size < BUFSIZE) {
+		buf->buf[buf->size++] = v;
+	}
+}
+
+void buf_clear(temp_buf_t *buf) {
+	buf->size = 0;
+}
+
+void update_rect_stm32(const vbuf_t *vbuf, bbox_t *bbox) {
+	int x, x_end;
+	int y, y_end, y_start_bytes, y_end_bytes;
+	static temp_buf_t buf;
+
+	x_end = MIN(bbox->x + bbox->sizex, DISP_COLS);
+	y_end = MIN(bbox->y + bbox->sizey, DISP_ROWS*8);
+
+	y_start_bytes = bbox->y / 8;
+	y_end_bytes = y_end / 8;
+
+	disp_caddr_set(bbox->x, x_end-1);
+	disp_raddr_set(bbox->y, y_end-1);
+
+	// RAMWR
+	disp_write_cmdb(0x2C);
+
+	for (y = y_start_bytes; y < y_end_bytes; y++) {
+		for (int rem = 0; rem < 8; rem++) {
+			for (x = bbox->x; x < x_end; x++) {
+				uint16_t v = 0x0000;
+				if ((vbuf->buf[x][y] >> rem) & 0x01) {
+					v = 0xFFFF;	
+				}
+				buf_push(&buf, v);
+				if (buf.size == BUFSIZE) {
+					disp_write_data((uint8_t*)buf.buf, BUFSIZE*2);
+					buf_clear(&buf);
+				}
+			}
 		}
 	}
+	if (buf.size) {
+		disp_write_data((uint8_t*)buf.buf, BUFSIZE*2);
+		buf_clear(&buf);
+	}
+	disp_write_cmdb(0x00);
 }
 
 void fatal_error_stm32(const char *msg) {
@@ -84,23 +195,101 @@ static void gpio_init() {
 	palSetPadMode(GPIOA, 9, PAL_MODE_STM32_ALTERNATE_PUSHPULL);
 	palSetPadMode(GPIOA, 10, PAL_MODE_INPUT);
 
-	palSetPadMode(GPIOB, 6, PAL_MODE_STM32_ALTERNATE_OPENDRAIN);
-	palSetPadMode(GPIOB, 7, PAL_MODE_STM32_ALTERNATE_OPENDRAIN);
+	palSetPadMode(GPIOA, 5, PAL_MODE_STM32_ALTERNATE_PUSHPULL);
+	palSetPadMode(GPIOA, 7, PAL_MODE_STM32_ALTERNATE_PUSHPULL);
+	palSetPadMode(RST_PORT, RST_PIN, PAL_MODE_OUTPUT_PUSHPULL);
+	palSetPadMode(DC_PORT, DC_PIN, PAL_MODE_OUTPUT_PUSHPULL);
 }
+
+typedef bool button_state_t;
+typedef struct {
+	ioline_t line;
+	void (*cb)(void*);
+	virtual_timer_t vt;
+	button_state_t state;
+} button_t;
+
+#define DEBOUNCE_MS 50
+void vt_cb(virtual_timer_t *vt, void *arg);
+
+void button_cb(void *arg) {
+	chSysLockFromISR();
+
+	button_t *button = (button_t*)arg;
+	palDisableLineEventI(button->line);
+
+	chVTResetI(&button->vt);
+	button->state = !button->state;
+	chVTDoSetI(&button->vt, TIME_MS2I(DEBOUNCE_MS), 
+					vt_cb, button);
+
+	chSysUnlockFromISR();
+}
+
+void vt_cb(virtual_timer_t *vt, void *arg) {
+	chSysLockFromISR();
+
+	button_t *button = (button_t*)arg;
+	palEnableLineEventI(button->line, PAL_EVENT_MODE_BOTH_EDGES);
+	palSetLineCallbackI(button->line, button_cb, button);
+	
+	chSysUnlockFromISR();
+}
+
+button_state_t get_button_state(button_t *btn) {
+	chSysLock();
+	button_state_t state = btn->state;
+	chSysUnlock();
+	return state;
+}
+
+button_t buttons[] = {
+	{PAL_LINE(GPIOB, 13), button_cb},
+	{PAL_LINE(GPIOB, 15), button_cb},
+	{PAL_LINE(GPIOB, 14), button_cb},
+	{PAL_LINE(GPIOA, 11), button_cb},
+	{PAL_LINE(GPIOB, 12), button_cb},
+};
+#define NBUTTONS sizeof(buttons)/sizeof(button_t)
 
 bool init_stm32(void) {
 	chSysInit();
 	halInit();
 	gpio_init();
+
+	for (int i = 0; i < NBUTTONS; i++) {
+		ioline_t line = buttons[i].line;
+	
+		palSetLineMode(line, PAL_MODE_INPUT_PULLDOWN);
+		palEnableLineEvent(line, PAL_EVENT_MODE_BOTH_EDGES);
+		chVTObjectInit(&buttons[i].vt);
+		if (buttons[i].cb)
+			palSetLineCallback(line, buttons[i].cb, &buttons[i]);
+	}
 	
 	sdStart(&SD1, NULL);
 
-	const I2CConfig cfg = {
-		.op_mode = OPMODE_I2C,
-		.clock_speed = 100000,
-		.duty_cycle = STD_DUTY_CYCLE,
+	static const SPIConfig cfg = {
+		.circular = false,
+		.data_cb = NULL,
+		.error_cb = NULL,
+		.slave = false,
+		.sspad = 4,
+		.ssport = GPIOA,
+		.cr1 = SPI_CR1_CPOL | SPI_CR1_CPHA,
+		.cr2 = 0
 	};
-	return !i2cStart(&I2CD1, &cfg);
+	return !spiStart(&SPID1, &cfg);
+}
+
+void loop_stm32(vbuf_t *vbuf, block_t *blk) {
+	static bool button_states[NBUTTONS] = {0};
+	for (int i = 0; i < NBUTTONS; i++) {
+		button_states[i] = buttons[i].state;	
+	}
+	if (buttons_do_action(blk, button_states)) {
+		update_block(vbuf, blk);
+	}
 }
 
 void led_toggle_stm32(void) {
@@ -112,7 +301,7 @@ uint32_t millis_stm32(void) {
 }
 
 char serial_getch_stm32(void) {
-	return sdGetTimeout(&SD1, TIME_MS2I(1));
+	return sdGetTimeout(&SD1, TIME_US2I(1));
 }
 
 thdiface_t thdiface_stm32 = {
@@ -129,8 +318,7 @@ void thd_create_stm32(thd_handle_t *handle) {
 }
 
 void thd_exit_stm32(int code) {
-	(void)code;
-	// Stub
+	chThdExit(code);
 }
 
 void thd_lock_stm32(mutex_impl_t *mtx) {
