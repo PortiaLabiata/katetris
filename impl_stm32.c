@@ -209,7 +209,7 @@ typedef struct {
 	button_state_t state;
 } button_t;
 
-#define DEBOUNCE_MS 50
+#define DEBOUNCE_MS 10
 void vt_cb(virtual_timer_t *vt, void *arg);
 
 void button_cb(void *arg) {
@@ -289,6 +289,7 @@ void loop_stm32(vbuf_t *vbuf, block_t *blk) {
 	}
 	if (buttons_do_action(blk, button_states)) {
 		update_block(vbuf, blk);
+		hw->delay(150);
 	}
 }
 

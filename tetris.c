@@ -103,10 +103,10 @@ void update_block(vbuf_t *vbuf, block_t *blk) {
 	// We need to clear previous position
 	// and draw new one
 	bbox_t update_mask = {
-		.x = (blk->x-1)*GRID_STEP,
-		.y = (blk->y-1)*GRID_STEP,
-		.sizex = (BLOCK_HEIGHT+2)*GRID_STEP,
-		.sizey = (BLOCK_HEIGHT+2)*GRID_STEP,
+		.x = 0,
+		.y = (blk->y-2)*GRID_STEP,
+		.sizex = DISP_COLS*GRID_STEP,
+		.sizey = (BLOCK_HEIGHT+4)*GRID_STEP,
 	};
 	// Make sure y is more than 0
 	update_mask.y = MAX(update_mask.y, 0);

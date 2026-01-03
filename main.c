@@ -63,37 +63,6 @@ thd_handle_t threads[] = {
 	 .func = thd_video},
 };
 
-void block_move(char c, bbox_t bbox, block_t *blk) {
-	switch (c) {
-		case 'a':
-			if (blk->y+bbox.y > 0) {
-				blk->y -= 1;
-				update_block(&vbuf, blk);
-			}
-			break;
-		case 'd':
-			if (blk->y+bbox.y < GRID_COLS-bbox.sizey) {
-				blk->y += 1;
-				update_block(&vbuf, blk);
-			}
-			break;
-		case 's':
-			if (blk->x+bbox.x < GRID_ROWS-bbox.sizex) {
-				blk->x += 1;
-				update_block(&vbuf, blk);
-			}
-			break;
-		case 'e':
-			block_rotr(blk);
-			update_block(&vbuf, blk);
-
-			bbox = get_bbox(blk->ptrs[blk->ori]);
-			break;
-		default:
-			break;
-	}
-}
-
 // TODO: fix rendering of gamma block in one of 
 // orientation
 int main(int argc, char *argv[]) {
@@ -135,8 +104,6 @@ int main(int argc, char *argv[]) {
 			t_last = t_now;
 			blk.x++;
 			update_block(&vbuf, &blk);
-			bbox_stack_push(&vbuf.upd_stack, 
-				&(bbox_t){SCORE_X, SCORE_Y, SCORE_SIZEX, SCORE_SIZEY});
 		}
 		if (block_collides(&blk, grid)) {
 collision:
@@ -158,10 +125,12 @@ collision:
 		grid_draw(&vbuf, grid);
 
 		text_draw_number(&vbuf, score, SCORE_X, SCORE_Y);
+		bbox_stack_push(&vbuf.upd_stack, 
+			&(bbox_t){SCORE_X, SCORE_Y, SCORE_SIZEX, SCORE_SIZEY});
 #if SITL
 		draw(&vbuf);
 #endif
-		hw->delay(100);
+		hw->delay(10);
 	} // while (1)
 }
 

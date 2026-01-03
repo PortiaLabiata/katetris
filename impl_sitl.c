@@ -139,8 +139,11 @@ void update_rect_sitl(const vbuf_t *vbuf, bbox_t *bbox) {
 	x_end = MIN(bbox->x + bbox->sizex, DISP_COLS);
 	y_end = MIN(bbox->y + bbox->sizey, DISP_ROWS*8)/8;
 
-	for (x = bbox->x; x < x_end; x++) {
-		for (y = bbox->y/8; y < y_end; y++) {
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+	SDL_RenderClear(renderer);
+
+	for (x = 0; x < DISP_COLS; x++) {
+		for (y = 0; y < DISP_ROWS; y++) {
 			for (int k = 0; k < 8; k++) {
 				uint8_t byte = (vbuf->buf[x][y] >> k) & 0x01;	
 				draw_pixel(k+8*y, x, byte);	

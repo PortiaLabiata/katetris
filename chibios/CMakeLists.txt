@@ -5,6 +5,8 @@ option(BUILD_STREAMS "Build chprintf" ON)
 
 option(BUILD_GPIO "Build GPIO" ON)
 option(BUILD_SERIAL "Build serial" OFF)
+option(BUILD_SPI "Build SPI" OFF)
+option(BUILD_I2C "Build I2C" OFF)
 
 set(COMMON_INCLUDES 
 		${CMAKE_CURRENT_SOURCE_DIR}/..
@@ -73,6 +75,11 @@ if(BUILD_SERIAL)
 	list(APPEND FILES_HAL_SRC hal_serial.c)
 endif()
 
+if(BUILD_I2C)
+	list(APPEND LIBS_LLD_ALL I2Cv1)
+	list(APPEND FILES_HAL_SRC hal_i2c.c)
+endif()
+
 #-------------------------------------------
 
 foreach(LLD_LIB ${LIBS_LLD_ALL})
@@ -85,6 +92,12 @@ endforeach()
 foreach(HAL_FILE ${FILES_HAL_SRC})
 	list(APPEND FILES_HAL_ALL_SRC os/hal/src/${HAL_FILE})
 endforeach()
+
+if(BUILD_SPI)
+	list(APPEND FILES_LLD_SRC_ALL ${LLD_LIBS_PATH}/SPIv1/hal_spi_v2_lld.c)
+	list(APPEND COMMON_INCLUDES ${LLD_LIBS_PATH}/SPIv1)
+	list(APPEND FILES_HAL_ALL_SRC os/hal/src/hal_spi.c)
+endif()
 
 add_library(
 		chibios STATIC 
@@ -115,3 +128,5 @@ add_library(
 		os/hal/ports/common/ARMCMx/nvic.c
 	)
 target_include_directories(chibios PUBLIC ${COMMON_INCLUDES})
+target_compile_options(chibios PUBLIC ${UC_COMPILE_OPTIONS})
+target_link_options(chibios PUBLIC ${UC_LINK_OPTIONS})
