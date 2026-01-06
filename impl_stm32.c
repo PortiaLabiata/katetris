@@ -209,7 +209,7 @@ typedef struct {
 	button_state_t state;
 } button_t;
 
-#define DEBOUNCE_MS 10
+#define DEBOUNCE_MS 50
 void vt_cb(virtual_timer_t *vt, void *arg);
 
 void button_cb(void *arg) {

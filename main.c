@@ -63,8 +63,6 @@ thd_handle_t threads[] = {
 	 .func = thd_video},
 };
 
-// TODO: fix rendering of gamma block in one of 
-// orientation
 int main(int argc, char *argv[]) {
 	if (!hw->init()) {
 		hw->fatal_error("system");
@@ -128,6 +126,16 @@ collision:
 		bbox_stack_push(&vbuf.upd_stack, 
 			&(bbox_t){SCORE_X, SCORE_Y, SCORE_SIZEX, SCORE_SIZEY});
 #if SITL
+#if SITL_OVERLAY
+		extern SDL_Renderer *renderer;
+		SDL_SetRenderDrawColor(renderer, 0, 0, 255, 100);
+		SDL_RenderFillRect(renderer, &(SDL_Rect){
+			bbox.y*GRID_STEP*ZOOM,
+			bbox.x*GRID_STEP*ZOOM,
+			bbox.sizey*GRID_STEP*ZOOM,
+			bbox.sizex*GRID_STEP*ZOOM,
+		});
+#endif
 		draw(&vbuf);
 #endif
 		hw->delay(10);

@@ -6,9 +6,9 @@
 #include "types.h"
 
 static const pattern_t patterns_gamma[ORI_SIZE] = {
-		{0b110, 
-		 0b100, 
-		 0b100},
+		{0b011, 
+		 0b001, 
+		 0b001},
 
 		{0b000, 
 		 0b111, 

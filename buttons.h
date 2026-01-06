@@ -11,6 +11,7 @@ typedef enum {
 	BUTTON_COUNT
 } button_e;
 
+// TODO: recheck boundaries when rotating
 bool buttons_do_action(block_t *blk, bool button_states[]) {
 	#define PRESSED(b) button_states[b]
 	// Potential overhead
@@ -21,7 +22,7 @@ bool buttons_do_action(block_t *blk, bool button_states[]) {
 		ret = true;
 	}
 	if (PRESSED(BUTTON_RIGHT) && 
-			blk->y+bbox.y < GRID_COLS-bbox.sizey) {
+			blk->y+bbox.y < GRID_COLS-bbox.sizey-1) {
 		blk->y++;
 		ret = true;
 	}
